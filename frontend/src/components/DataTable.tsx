@@ -16,7 +16,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
 }
 
-export default function DataTable<T extends { _id?: string; id?: string | number }>({
+export default function DataTable<T = any>({
   data,
   columns,
   onRowClick,
