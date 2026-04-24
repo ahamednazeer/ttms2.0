@@ -1,9 +1,11 @@
 'use client';
-
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
-import DataTable from '@/components/DataTable';
 import { ShieldCheck } from '@phosphor-icons/react';
+import { CrudPageSkeleton } from '@/components/Skeleton';
+
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
 
 interface AuditLogRecord {
   _id: string;
@@ -57,23 +59,23 @@ export default function AuditLogsPage() {
   };
 
   const columns = [
-    { key: 'createdAt', label: 'Time', render: (r: AuditLogRecord) => new Date(r.createdAt).toLocaleString() },
+    { key: 'createdAt', label: 'Time', render: (r: any) => new Date(r.createdAt).toLocaleString() },
     { key: 'action', label: 'Action' },
-    { key: 'status', label: 'Status', render: (r: AuditLogRecord) => (
+    { key: 'status', label: 'Status', render: (r: any) => (
       <span className={r.status === 'SUCCESS' ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>
         {r.status}
       </span>
     ) },
-    { key: 'actor', label: 'Actor', render: (r: AuditLogRecord) => r.actorUsername || r.actorId || '-' },
-    { key: 'role', label: 'Role', render: (r: AuditLogRecord) => r.actorRole || '-' },
-    { key: 'targetId', label: 'Target', render: (r: AuditLogRecord) => r.targetId || '-' },
-    { key: 'request', label: 'Request', render: (r: AuditLogRecord) => `${r.method || '-'} ${r.path || '-'}` },
-    { key: 'ip', label: 'IP', render: (r: AuditLogRecord) => r.ip || '-' },
-    { key: 'errorMessage', label: 'Error', render: (r: AuditLogRecord) => r.errorMessage || '-' },
+    { key: 'actor', label: 'Actor', render: (r: any) => r.actorUsername || r.actorId || '-' },
+    { key: 'role', label: 'Role', render: (r: any) => r.actorRole || '-' },
+    { key: 'targetId', label: 'Target', render: (r: any) => r.targetId || '-' },
+    { key: 'request', label: 'Request', render: (r: any) => `${r.method || '-'} ${r.path || '-'}` },
+    { key: 'ip', label: 'IP', render: (r: any) => r.ip || '-' },
+    { key: 'errorMessage', label: 'Error', render: (r: any) => r.errorMessage || '-' },
   ];
 
   if (loading) {
-    return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading audit activity...</div>;
+    return <CrudPageSkeleton cols={8} />;
   }
 
   return (

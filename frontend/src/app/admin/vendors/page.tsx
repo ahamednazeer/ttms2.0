@@ -1,11 +1,14 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
-import DataTable from '@/components/DataTable';
-import Modal from '@/components/Modal';
 import type { City, CreateVendorInput, User, Vendor } from '@/lib/types';
 import { Storefront, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { CrudPageSkeleton } from '@/components/Skeleton';
+
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -70,7 +73,7 @@ export default function VendorsPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading vendor records...</div>;
+  if (loading) return <CrudPageSkeleton cols={5} />;
 
   return (
     <div className="space-y-6">

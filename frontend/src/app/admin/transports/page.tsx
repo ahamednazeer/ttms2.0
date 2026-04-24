@@ -1,10 +1,13 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
-import DataTable from '@/components/DataTable';
-import Modal from '@/components/Modal';
 import { Truck, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { CrudPageSkeleton } from '@/components/Skeleton';
+
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 
 interface TransportFormState {
   vehicleNo: string;
@@ -167,7 +170,7 @@ export default function TransportsPage() {
     },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading transport records...</div>;
+  if (loading) return <CrudPageSkeleton cols={7} />;
 
   return (
     <div className="space-y-6">

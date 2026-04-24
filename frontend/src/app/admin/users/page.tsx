@@ -1,12 +1,15 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
-import DataTable from '@/components/DataTable';
-import Modal from '@/components/Modal';
 import { StatusBadge } from '@/components/StatusBadge';
 import type { City, CreateUserInput, User } from '@/lib/types';
 import { Users, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { CrudPageSkeleton } from '@/components/Skeleton';
+
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -52,7 +55,7 @@ export default function UsersPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading user accounts...</div>;
+  if (loading) return <CrudPageSkeleton cols={6} />;
 
   return (
     <div className="space-y-6">

@@ -7,6 +7,7 @@ import { useTicketRealtime } from '@/hooks/useTicketRealtime';
 import type { City, Location, Ticket, User } from '@/lib/types';
 import { CarSimple, MapPin, CheckCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { SingleCardSkeleton } from '@/components/Skeleton';
 
 export default function TransportDashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -62,7 +63,7 @@ export default function TransportDashboard() {
     finally { setCompletingRide(false); }
   };
 
-  if (loading) return <LoadingState label="Loading assigned journeys..." />;
+  if (loading) return <SingleCardSkeleton />;
 
   if (!activeTicket) {
     return (

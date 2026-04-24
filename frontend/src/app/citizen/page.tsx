@@ -1,13 +1,16 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 import { LoadingState } from '@/components/FeedbackState';
-import DatePicker from '@/components/DatePicker';
 import { useTicketRealtime } from '@/hooks/useTicketRealtime';
 import type { CreateTicketInput, Location, Ticket, Transport } from '@/lib/types';
 import { Path, MapPin, CarSimple, Key } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { SingleCardSkeleton } from '@/components/Skeleton';
+
+const DatePicker = dynamic(() => import('@/components/DatePicker'), { ssr: false });
 
 type LocationOption = Location;
 type TicketRecord = Ticket;
@@ -72,7 +75,7 @@ export default function CitizenPage() {
     }
   };
 
-  if (loading) return <LoadingState label="Loading your ride details..." />;
+  if (loading) return <SingleCardSkeleton />;
 
   // Show active ticket
   if (activeTicket) {

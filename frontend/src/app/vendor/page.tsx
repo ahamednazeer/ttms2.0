@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataCard } from '@/components/DataCard';
 import { Gauge, Ticket, Truck } from '@phosphor-icons/react';
+import { DashboardSkeleton } from '@/components/Skeleton';
 
 export default function VendorDashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -12,7 +13,7 @@ export default function VendorDashboard() {
     api.getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading vendor dashboard...</div>;
+  if (loading) return <DashboardSkeleton cardCount={3} />;
 
   return (
     <div className="space-y-8">

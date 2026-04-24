@@ -1,9 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
-import DataTable from '@/components/DataTable';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ClockCounterClockwise } from '@phosphor-icons/react';
+import { CrudPageSkeleton } from '@/components/Skeleton';
+
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
 
 export default function TransportHistoryPage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -19,7 +22,7 @@ export default function TransportHistoryPage() {
     { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading completed journeys...</div>;
+  if (loading) return <CrudPageSkeleton cols={6} />;
 
   return (
     <div className="space-y-6">
