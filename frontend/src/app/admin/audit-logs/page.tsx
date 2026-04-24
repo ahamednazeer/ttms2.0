@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { ShieldCheck } from '@phosphor-icons/react';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 
-const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 
 interface AuditLogRecord {
   _id: string;

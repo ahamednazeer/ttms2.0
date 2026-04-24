@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ClockCounterClockwise } from '@phosphor-icons/react';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 
-const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 
 export default function TransportHistoryPage() {
   const [tickets, setTickets] = useState<any[]>([]);

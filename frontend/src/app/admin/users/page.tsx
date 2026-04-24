@@ -8,7 +8,7 @@ import { Users, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 
-const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 
 export default function UsersPage() {

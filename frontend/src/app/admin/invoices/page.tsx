@@ -6,7 +6,7 @@ import { Invoice, DownloadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 
-const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false });
+const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
