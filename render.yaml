@@ -12,15 +12,4 @@ services:
       - key: PORT
         value: 8000
 
-  - type: web
-    name: ttms-frontend
-    env: docker
-    region: oregon
-    plan: free
-    dockerContext: ./frontend
-    dockerfilePath: ./frontend/Dockerfile
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 3000
+
