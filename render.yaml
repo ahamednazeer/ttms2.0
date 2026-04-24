@@ -2,7 +2,7 @@ services:
   - type: web
     name: ttms-backend
     env: docker
-    region: oregon
+    region: singapore
     plan: free
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
