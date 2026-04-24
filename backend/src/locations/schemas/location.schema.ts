@@ -9,3 +9,4 @@ export class Location {
   @Prop({ default: true }) active: boolean;
 }
 export const LocationSchema = SchemaFactory.createForClass(Location);
+LocationSchema.index({ cityId: 1, locationName: 1 }, { unique: true });

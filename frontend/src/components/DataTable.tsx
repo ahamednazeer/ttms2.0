@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { ArrowUpDown } from 'lucide-react';
+import React, { ReactNode, useMemo, useState } from 'react';
+import { ArrowUpDown, Search } from 'lucide-react';
 
 interface Column<T> {
   key: keyof T | string;
@@ -21,44 +21,135 @@ export default function DataTable<T extends { _id?: string; id?: string | number
   onRowClick,
   emptyMessage = 'No data available',
 }: DataTableProps<T>) {
-  if (data.length === 0) {
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  const filteredData = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) return data;
+
+    return data.filter((item) =>
+      columns.some((column) => {
+        if (column.render || column.key === 'actions') return false;
+        const value = (item as Record<string, unknown>)[String(column.key)];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(normalizedSearch);
+      }),
+    );
+  }, [columns, data, search]);
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return filteredData;
+
+    return [...filteredData].sort((left, right) => {
+      const leftValue = (left as Record<string, unknown>)[sortConfig.key];
+      const rightValue = (right as Record<string, unknown>)[sortConfig.key];
+
+      const normalizedLeft = typeof leftValue === 'string' ? leftValue.toLowerCase() : leftValue;
+      const normalizedRight = typeof rightValue === 'string' ? rightValue.toLowerCase() : rightValue;
+
+      if (normalizedLeft === normalizedRight) return 0;
+      if (normalizedLeft == null) return 1;
+      if (normalizedRight == null) return -1;
+
+      const result = normalizedLeft > normalizedRight ? 1 : -1;
+      return sortConfig.direction === 'asc' ? result : -result;
+    });
+  }, [filteredData, sortConfig]);
+
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedData.slice(start, start + pageSize);
+  }, [currentPage, sortedData]);
+
+  const toggleSort = (key: string) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  if (sortedData.length === 0) {
     return (
-      <div className="bg-slate-800/40 border border-slate-700/60 rounded-sm text-center py-12">
-        <p className="text-slate-500 font-mono">{emptyMessage}</p>
+      <div className="panel text-center py-14 px-6">
+        <div className="mx-auto mb-4 h-12 w-12 rounded-2xl border border-slate-700/80 bg-slate-900/70 flex items-center justify-center text-slate-500 font-mono text-lg">
+          0
+        </div>
+        <p className="text-slate-300 font-medium">Nothing to show yet</p>
+        <p className="text-slate-500 font-mono text-sm mt-2">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-800/40 border border-slate-700/60 rounded-sm overflow-hidden">
+    <div className="panel overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/90 bg-slate-900/60">
+        <div>
+          <p className="section-title">Results</p>
+          <p className="text-slate-400 text-sm mt-1">{filteredData.length} record{filteredData.length === 1 ? '' : 's'}</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search table"
+              className="input-modern !pl-10 min-w-52"
+            />
+          </div>
+          {sortConfig && (
+            <p className="text-slate-500 text-xs font-mono uppercase tracking-wider">
+              Sorted by {sortConfig.key} ({sortConfig.direction})
+            </p>
+          )}
+        </div>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-900/50">
+        <table className="w-full min-w-[760px]">
+          <thead className="bg-slate-900/80 sticky top-0 z-10">
             <tr>
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className="px-6 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider"
+                  className="px-6 py-4 text-left text-xs font-mono text-slate-500 uppercase tracking-wider border-b border-slate-800/90"
                 >
-                  <div className="flex items-center gap-2">
-                    {column.label}
-                    {column.sortable && (
+                  {column.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(String(column.key))}
+                      className="flex items-center gap-2 hover:text-slate-300"
+                    >
+                      {column.label}
                       <ArrowUpDown className="w-3 h-3 text-slate-600" />
-                    )}
-                  </div>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">{column.label}</div>
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {data.map((item, rowIndex) => (
+          <tbody className="divide-y divide-slate-800/70">
+            {paginatedData.map((item, rowIndex) => (
               <tr
                 key={(item as any)._id || (item as any).id || rowIndex}
                 onClick={() => onRowClick?.(item)}
-                className={`hover:bg-slate-800/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={`transition-colors odd:bg-slate-950/10 hover:bg-slate-800/50 ${onRowClick ? 'cursor-pointer' : ''}`}
               >
                 {columns.map((column, colIndex) => (
-                  <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-slate-200">
                     {column.render
                       ? column.render(item)
                       : String((item as any)[column.key] || '-')}
@@ -69,6 +160,21 @@ export default function DataTable<T extends { _id?: string; id?: string | number
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800/90 bg-slate-900/40">
+          <p className="text-slate-500 text-sm">
+            Page {currentPage} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1}>
+              Previous
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages}>
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

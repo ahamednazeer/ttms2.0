@@ -23,12 +23,14 @@ const statusStyles: Record<string, string> = {
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const style = statusStyles[status?.toUpperCase()] || 'text-slate-400 bg-slate-950/50 border-slate-800';
+  const label = (status || 'UNKNOWN').replace(/_/g, ' ');
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider border ${style} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider border shadow-sm ${style} ${className}`}
     >
-      {(status || '').replace(/_/g, ' ')}
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-90" />
+      {label}
     </span>
   );
 }

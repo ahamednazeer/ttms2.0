@@ -11,3 +11,4 @@ export class LocationCost {
   @Prop({ required: true }) distance: number;
 }
 export const LocationCostSchema = SchemaFactory.createForClass(LocationCost);
+LocationCostSchema.index({ cityId: 1, fromLocationId: 1, toLocationId: 1 }, { unique: true });

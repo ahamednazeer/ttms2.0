@@ -84,17 +84,17 @@ export default function LoginPage() {
       <div className="scanlines" />
 
       <div className="relative z-10 w-full max-w-md mx-4">
-        <div className="bg-slate-900/90 border border-slate-700 rounded-sm p-8 backdrop-blur-md">
+        <div className="panel p-8 backdrop-blur-md">
           <div className="flex flex-col items-center mb-8">
             <Truck size={48} weight="duotone" className="text-blue-400 mb-4" />
             <h1 className="text-3xl font-chivo font-bold uppercase tracking-wider text-center">
               TTMS
             </h1>
-            <p className="text-slate-400 text-sm mt-2">Transport Tracking Management System</p>
+            <p className="page-subtitle text-center mt-2">Secure transport tracking, OTP verification, and operational management</p>
           </div>
 
           {error && (
-            <div className="bg-red-950/50 border border-red-800 rounded-sm p-3 mb-4 text-sm text-red-400">
+            <div className="bg-red-950/50 border border-red-800 rounded-lg p-3 mb-4 text-sm text-red-400">
               {error}
             </div>
           )}
@@ -105,13 +105,13 @@ export default function LoginPage() {
                 Username
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="w-full bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-sm placeholder:text-slate-600 font-mono text-sm pl-10 pr-3 py-2.5 border outline-none"
+                  className="input-modern !pl-[3.25rem]"
                   placeholder="Enter username"
                   id="username-input"
                   disabled={loading}
@@ -124,14 +124,14 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-sm placeholder:text-slate-600 font-mono text-sm pl-10 pr-3 py-2.5 border outline-none"
-                  placeholder="••••••••"
+                  className="input-modern !pl-[3.25rem]"
+                  placeholder="Enter password"
                   id="password-input"
                   disabled={loading}
                 />
@@ -141,24 +141,15 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-sm font-medium tracking-wide uppercase text-sm px-4 py-3 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-primary py-3"
               id="login-submit-btn"
             >
               {loading ? 'Authenticating...' : 'Access System'}
             </button>
           </form>
-
-          <div className="mt-6 p-4 bg-slate-950/50 border border-slate-800 rounded-sm">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-mono">Demo Accounts:</p>
-            <div className="grid grid-cols-1 gap-y-1 text-xs font-mono text-slate-400">
-              <div>Super Admin: admin / admin123</div>
-              <div>Vendor: vendor1 / vendor123</div>
-              <div>Transport: driver1 / driver123</div>
-              <div>Citizen: user1 / user123</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 }
+

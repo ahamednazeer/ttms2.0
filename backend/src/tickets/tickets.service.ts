@@ -6,6 +6,7 @@ import { LocationCostsService } from '../location-costs/location-costs.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Transport, TransportDocument } from '../transports/schemas/transport.schema';
 import { Location, LocationDocument } from '../locations/schemas/location.schema';
+import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 
 interface ActorContext {
   sub: string;
@@ -21,6 +22,7 @@ export class TicketsService {
     @InjectModel(Ticket.name) private model: Model<TicketDocument>,
     @InjectModel(Transport.name) private transportModel: Model<TransportDocument>,
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
+    @InjectModel(Vendor.name) private vendorModel: Model<VendorDocument>,
     private locationCostsService: LocationCostsService,
     private realtimeService: RealtimeService,
   ) {}
@@ -38,7 +40,22 @@ export class TicketsService {
       if (actor.role === 'USER') filter.userId = actor.sub;
       if (actor.role === 'VENDOR') {
         if (!actor.vendorId) return [];
-        filter.vendorId = actor.vendorId;
+        const vendor = await this.vendorModel.findById(actor.vendorId).select('cityId').lean();
+        const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
+        if (!vendorCityId) {
+          filter.vendorId = actor.vendorId;
+        } else {
+          const baseFilter = { ...filter };
+          delete baseFilter.vendorId;
+          delete baseFilter.cityId;
+          return this.model.find({
+            ...baseFilter,
+            $or: [
+              { vendorId: actor.vendorId },
+              { status: 'PENDING', cityId: vendorCityId },
+            ],
+          }).populate(this.populateFields).sort({ createdAt: -1 }).exec();
+        }
       }
       if (actor.role === 'TRANSPORT') {
         if (!actor.transportId) return [];
@@ -52,6 +69,22 @@ export class TicketsService {
   async findOne(id: string, actor?: ActorContext) {
     const ticket = await this.model.findById(id).populate(this.populateFields);
     if (!ticket) throw new NotFoundException('Ticket not found');
+    if (actor?.role === 'VENDOR') {
+      const vendor = actor.vendorId
+        ? await this.vendorModel.findById(actor.vendorId).select('cityId').lean()
+        : null;
+      const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
+      const matchesAssignedVendor = actor.vendorId && this.normalizeId(ticket.vendorId) === actor.vendorId;
+      const matchesPendingCity =
+        ticket.status === 'PENDING' &&
+        !!vendorCityId &&
+        this.normalizeId(ticket.cityId) === vendorCityId;
+
+      if (!matchesAssignedVendor && !matchesPendingCity) {
+        throw new ForbiddenException('Cannot access tickets outside your vendor scope');
+      }
+      return ticket;
+    }
     if (actor) this.assertTicketAccess(ticket, actor);
     return ticket;
   }
@@ -88,6 +121,11 @@ export class TicketsService {
       if (!actor.vendorId) throw new ForbiddenException('Vendor access is not configured');
       if (this.normalizeId(transport.vendorId) !== actor.vendorId) {
         throw new ForbiddenException('Cannot assign a transport from another vendor');
+      }
+      const vendor = await this.vendorModel.findById(actor.vendorId).select('cityId').lean();
+      const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
+      if (vendorCityId && this.normalizeId(ticket.cityId) !== vendorCityId) {
+        throw new ForbiddenException('Cannot assign tickets outside your city scope');
       }
       if (ticket.vendorId && this.normalizeId(ticket.vendorId) !== actor.vendorId) {
         throw new ForbiddenException('Cannot assign tickets outside your vendor scope');
@@ -196,9 +234,13 @@ export class TicketsService {
     }
 
     if (actor.role === 'VENDOR') {
-      if (!actor.vendorId || this.normalizeId(ticket.vendorId) !== actor.vendorId) {
+      if (!actor.vendorId) {
         throw new ForbiddenException('Cannot access tickets outside your vendor scope');
       }
+      if (this.normalizeId(ticket.vendorId) === actor.vendorId) {
+        return;
+      }
+      throw new ForbiddenException('Cannot access tickets outside your vendor scope');
     }
 
     if (actor.role === 'TRANSPORT') {

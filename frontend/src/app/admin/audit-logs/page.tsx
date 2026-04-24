@@ -82,10 +82,10 @@ export default function AuditLogsPage() {
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
           <ShieldCheck size={28} weight="duotone" className="text-cyan-400" /> Audit Logs
         </h1>
-        <p className="text-slate-500 text-sm font-mono">Recent auth and ticket mutation activity</p>
+        <p className="page-subtitle font-mono">Recent auth and ticket mutation activity</p>
       </div>
 
-      <form onSubmit={handleApplyFilters} className="bg-slate-800/40 border border-slate-700/60 rounded-sm p-4 grid grid-cols-1 md:grid-cols-5 gap-4">
+      <form onSubmit={handleApplyFilters} className="card grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
           <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Action</label>
           <input value={filters.action} onChange={e => setFilters({ ...filters, action: e.target.value })} className="input-modern" placeholder="AUTH_SIGN_IN" />

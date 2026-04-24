@@ -1,3 +1,19 @@
+import type {
+  City,
+  CreateCityInput,
+  CreateLocationCostInput,
+  CreateTicketInput,
+  CreateTransportInput,
+  CreateUserInput,
+  CreateVendorInput,
+  Location,
+  LocationCost,
+  Ticket,
+  Transport,
+  UpdateUserInput,
+  User,
+  Vendor,
+} from './types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class ApiClient {
@@ -43,7 +59,16 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.message || error.detail || 'Request failed');
+      if (response.status === 401 && endpoint !== '/auth/sign-in') {
+        this.clearToken();
+      }
+
+      const message =
+        response.status === 429
+          ? 'Too many requests. Please wait a moment and try again.'
+          : error.message || error.detail || 'Request failed';
+
+      throw new Error(message);
     }
 
     // Handle empty responses (204 No Content)
@@ -66,18 +91,18 @@ class ApiClient {
   }
 
   // ============ Cities ============
-  async getCities() {
+  async getCities(): Promise<City[]> {
     return this.request('/city');
   }
 
-  async createCity(data: any) {
+  async createCity(data: CreateCityInput): Promise<City> {
     return this.request('/city', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateCity(id: string, data: any) {
+  async updateCity(id: string, data: Partial<CreateCityInput>): Promise<City> {
     return this.request(`/city/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -89,18 +114,18 @@ class ApiClient {
   }
 
   // ============ Locations ============
-  async getLocations() {
+  async getLocations(): Promise<Location[]> {
     return this.request('/location');
   }
 
-  async createLocation(data: any) {
+  async createLocation(data: { locationName: string; cityId: string }): Promise<Location> {
     return this.request('/location', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateLocation(id: string, data: any) {
+  async updateLocation(id: string, data: { locationName?: string; cityId?: string }): Promise<Location> {
     return this.request(`/location/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -112,22 +137,22 @@ class ApiClient {
   }
 
   // ============ Location Costs ============
-  async getLocationCosts() {
+  async getLocationCosts(): Promise<LocationCost[]> {
     return this.request('/locationcost');
   }
 
-  async getLocationCostsByCity(cityId: string) {
+  async getLocationCostsByCity(cityId: string): Promise<LocationCost[]> {
     return this.request(`/locationcost/city/${cityId}`);
   }
 
-  async createLocationCost(data: any) {
+  async createLocationCost(data: CreateLocationCostInput): Promise<LocationCost> {
     return this.request('/locationcost', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateLocationCost(id: string, data: any) {
+  async updateLocationCost(id: string, data: Partial<CreateLocationCostInput>): Promise<LocationCost> {
     return this.request(`/locationcost/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -139,18 +164,18 @@ class ApiClient {
   }
 
   // ============ Vendors ============
-  async getVendors() {
+  async getVendors(): Promise<Vendor[]> {
     return this.request('/vendor');
   }
 
-  async createVendor(data: any) {
+  async createVendor(data: CreateVendorInput): Promise<Vendor> {
     return this.request('/vendor', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateVendor(id: string, data: any) {
+  async updateVendor(id: string, data: Partial<CreateVendorInput>): Promise<Vendor> {
     return this.request(`/vendor/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -162,18 +187,18 @@ class ApiClient {
   }
 
   // ============ Users ============
-  async getUsers() {
+  async getUsers(): Promise<User[]> {
     return this.request('/user');
   }
 
-  async createUser(data: any) {
+  async createUser(data: CreateUserInput): Promise<User> {
     return this.request('/user', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateUser(id: string, data: any) {
+  async updateUser(id: string, data: UpdateUserInput): Promise<User> {
     return this.request(`/user/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -191,18 +216,18 @@ class ApiClient {
   }
 
   // ============ Transports ============
-  async getTransports() {
+  async getTransports(): Promise<Transport[]> {
     return this.request('/transport');
   }
 
-  async createTransport(data: any) {
+  async createTransport(data: CreateTransportInput): Promise<Transport> {
     return this.request('/transport', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateTransport(id: string, data: any) {
+  async updateTransport(id: string, data: Partial<CreateTransportInput>): Promise<Transport> {
     return this.request(`/transport/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -214,16 +239,16 @@ class ApiClient {
   }
 
   // ============ Tickets ============
-  async getTickets(params?: Record<string, string>) {
+  async getTickets(params?: Record<string, string>): Promise<Ticket[]> {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return this.request(`/ride-ticket${query}`);
   }
 
-  async getTicket(id: string) {
+  async getTicket(id: string): Promise<Ticket> {
     return this.request(`/ride-ticket/${id}`);
   }
 
-  async createTicket(data: any) {
+  async createTicket(data: CreateTicketInput): Promise<Ticket> {
     return this.request('/ride-ticket', {
       method: 'POST',
       body: JSON.stringify(data),

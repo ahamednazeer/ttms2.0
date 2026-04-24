@@ -13,3 +13,4 @@ export class Transport {
   @Prop({ default: true }) active: boolean;
 }
 export const TransportSchema = SchemaFactory.createForClass(Transport);
+TransportSchema.index({ vehicleNo: 1 }, { unique: true });

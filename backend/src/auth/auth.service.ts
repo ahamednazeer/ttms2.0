@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { presentUser } from '../users/users.presenter';
 
 @Injectable()
 export class AuthService {
@@ -61,6 +62,6 @@ export class AuthService {
   async getMe(userId: string) {
     const user = await this.userModel.findById(userId).select('-password').populate('cityId vendorId transportId');
     if (!user) throw new UnauthorizedException('User not found');
-    return user;
+    return presentUser(user.toObject());
   }
 }

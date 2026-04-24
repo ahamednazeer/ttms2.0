@@ -82,12 +82,14 @@ export class RealtimeGateway
       await client.join(`user:${String(user._id)}`);
       await client.join(`role:${user.role}`);
 
-      if (user.vendorId?._id || user.vendorId) {
-        await client.join(`vendor:${String(user.vendorId?._id || user.vendorId)}`);
+      const vendorId = this.normalizeRefId(user.vendorId);
+      if (vendorId) {
+        await client.join(`vendor:${String(vendorId)}`);
       }
 
-      if (user.transportId?._id || user.transportId) {
-        await client.join(`transport:${String(user.transportId?._id || user.transportId)}`);
+      const transportId = this.normalizeRefId(user.transportId);
+      if (transportId) {
+        await client.join(`transport:${String(transportId)}`);
       }
 
       client.emit('realtime.connected', {

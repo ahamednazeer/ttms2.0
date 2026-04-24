@@ -8,6 +8,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 import { Transport, TransportSchema } from '../transports/schemas/transport.schema';
 import { Location, LocationSchema } from '../locations/schemas/location.schema';
 import { AuditModule } from '../audit/audit.module';
+import { Vendor, VendorSchema } from '../vendors/schemas/vendor.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuditModule } from '../audit/audit.module';
       { name: Ticket.name, schema: TicketSchema },
       { name: Transport.name, schema: TransportSchema },
       { name: Location.name, schema: LocationSchema },
+      { name: Vendor.name, schema: VendorSchema },
     ]),
     LocationCostsModule,
     RealtimeModule,

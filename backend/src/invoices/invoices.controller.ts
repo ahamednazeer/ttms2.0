@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Param, Body, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Response } from 'express';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('invoice')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPERADMIN')
 export class InvoicesController {
   constructor(private svc: InvoicesService) {}
 
@@ -17,7 +21,7 @@ export class InvoicesController {
   }
 
   @Get(':id/download')
-  download(@Param('id') id: string, @Res() res: any) {
+  download(@Param('id', ParseObjectIdPipe) id: string, @Res() res: Response) {
     return this.svc.downloadPdf(id, res);
   }
 }

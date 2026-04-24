@@ -10,3 +10,5 @@ export class City {
 }
 
 export const CitySchema = SchemaFactory.createForClass(City);
+CitySchema.index({ cityId: 1 }, { unique: true });
+CitySchema.index({ cityName: 1 }, { unique: true });

@@ -16,14 +16,15 @@ export function DataCard({
   iconColor = 'text-blue-400',
 }: DataCardProps) {
   return (
-    <div className={`bg-slate-800/40 border border-slate-700/60 rounded-sm p-6 transition-all duration-200 hover:border-slate-500 ${className}`}>
+    <div className={`card card-hover relative overflow-hidden ${className}`}>
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-400/30 to-transparent" />
       <div className="flex items-start justify-between">
         <div>
           <p className="text-slate-500 text-xs uppercase tracking-wider font-mono mb-2">{title}</p>
-          <p className="text-3xl font-bold font-mono text-slate-100">{value}</p>
+          <p className="text-3xl font-bold font-mono text-slate-100 tracking-tight">{value}</p>
         </div>
         {Icon && (
-          <div className={iconColor}>
+          <div className={`rounded-xl border border-slate-700/70 bg-slate-900/70 p-3 ${iconColor}`}>
             <Icon size={28} weight="duotone" />
           </div>
         )}

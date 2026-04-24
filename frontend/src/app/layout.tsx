@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TTMS – Transport Tracking Management System",
+  title: "TTMS - Transport Tracking Management System",
   description: "Embassy transport tracking, OTP verification, and automated invoicing platform",
 };
 
@@ -31,6 +31,8 @@ export default function RootLayout({
         {children}
         <Toaster
           position="top-right"
+          richColors
+          closeButton
           toastOptions={{
             style: {
               background: '#1e293b',
@@ -45,3 +47,4 @@ export default function RootLayout({
     </html>
   );
 }
+

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DataCard } from '@/components/DataCard';
 import { api } from '@/lib/api';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +48,7 @@ export default function AdminDashboard() {
           <Gauge size={28} weight="duotone" className="text-indigo-400" />
           Administration
         </h1>
-        <p className="text-slate-500 mt-1">System overview and management</p>
+        <p className="page-subtitle mt-1">System overview, operational health, and quick navigation</p>
       </div>
 
       {/* Stats Grid */}
@@ -61,7 +63,7 @@ export default function AdminDashboard() {
 
       {/* Quick Actions & Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 relative overflow-hidden">
+        <div className="card relative overflow-hidden">
           <Sparkle size={80} weight="duotone" className="absolute -right-4 -top-4 text-slate-700/20" />
           <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
             <Users size={16} weight="duotone" />
@@ -80,7 +82,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 relative overflow-hidden">
+        <div className="card relative overflow-hidden">
           <Sparkle size={80} weight="duotone" className="absolute -right-4 -top-4 text-slate-700/20" />
           <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
             <ArrowSquareOut size={16} weight="duotone" />
@@ -88,25 +90,25 @@ export default function AdminDashboard() {
           </h3>
           <div className="grid grid-cols-2 gap-3 relative z-10">
             <button
-              onClick={() => window.location.href = '/admin/cities'}
+              onClick={() => router.push('/admin/cities')}
               className="bg-gradient-to-br from-blue-900/40 to-blue-950/60 border border-blue-700/30 hover:border-blue-600/50 rounded-xl px-4 py-3 text-blue-300 font-bold text-sm uppercase tracking-wider transition-all hover:scale-[1.02]"
             >
               Manage Cities
             </button>
             <button
-              onClick={() => window.location.href = '/admin/vendors'}
+              onClick={() => router.push('/admin/vendors')}
               className="bg-gradient-to-br from-purple-900/40 to-purple-950/60 border border-purple-700/30 hover:border-purple-600/50 rounded-xl px-4 py-3 text-purple-300 font-bold text-sm uppercase tracking-wider transition-all hover:scale-[1.02]"
             >
               Manage Vendors
             </button>
             <button
-              onClick={() => window.location.href = '/admin/tickets'}
+              onClick={() => router.push('/admin/tickets')}
               className="bg-gradient-to-br from-green-900/40 to-green-950/60 border border-green-700/30 hover:border-green-600/50 rounded-xl px-4 py-3 text-green-300 font-bold text-sm uppercase tracking-wider transition-all hover:scale-[1.02]"
             >
               View Tickets
             </button>
             <button
-              onClick={() => window.location.href = '/admin/invoices'}
+              onClick={() => router.push('/admin/invoices')}
               className="bg-gradient-to-br from-orange-900/40 to-orange-950/60 border border-orange-700/30 hover:border-orange-600/50 rounded-xl px-4 py-3 text-orange-300 font-bold text-sm uppercase tracking-wider transition-all hover:scale-[1.02]"
             >
               Invoices

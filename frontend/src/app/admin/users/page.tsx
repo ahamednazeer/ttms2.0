@@ -4,16 +4,17 @@ import { api } from '@/lib/api';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import { StatusBadge } from '@/components/StatusBadge';
+import type { City, CreateUserInput, User } from '@/lib/types';
 import { Users, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editData, setEditData] = useState<any>(null);
-  const [form, setForm] = useState({ username: '', password: '', firstName: '', lastName: '', email: '', phone: '', role: 'USER', cityId: '' });
+  const [editData, setEditData] = useState<User | null>(null);
+  const [form, setForm] = useState<CreateUserInput>({ username: '', password: '', firstName: '', lastName: '', email: '', phone: '', role: 'USER', cityId: '' });
 
   const fetchData = async () => {
     try {
@@ -29,23 +30,23 @@ export default function UsersPage() {
       if (editData) { await api.updateUser(editData._id, form); toast.success('Updated'); }
       else { await api.createUser(form); toast.success('Created'); }
       setModalOpen(false); setEditData(null); fetchData();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to save user'); }
   };
 
-  const handleDelete = async (r: any) => {
+  const handleDelete = async (r: User) => {
     if (!confirm('Delete?')) return;
-    try { await api.deleteUser(r._id); toast.success('Deleted'); fetchData(); } catch (err: any) { toast.error(err.message); }
+    try { await api.deleteUser(r._id); toast.success('Deleted'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete user'); }
   };
 
   const columns = [
     { key: 'username', label: 'Username', sortable: true },
-    { key: 'name', label: 'Name', render: (r: any) => `${r.firstName||''} ${r.lastName||''}`.trim() || '-' },
+    { key: 'name', label: 'Name', render: (r: User) => `${r.firstName||''} ${r.lastName||''}`.trim() || '-' },
     { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role', render: (r: any) => <StatusBadge status={r.role} /> },
-    { key: 'city', label: 'City', render: (r: any) => r.cityId?.cityName || '-' },
-    { key: 'actions', label: 'Actions', render: (r: any) => (
+    { key: 'role', label: 'Role', render: (r: User) => <StatusBadge status={r.role} /> },
+    { key: 'city', label: 'City', render: (r: User) => (typeof r.cityId === 'string' ? '-' : r.cityId?.cityName || '-') },
+    { key: 'actions', label: 'Actions', render: (r: User) => (
       <div className="flex gap-2">
-        <button onClick={() => { setEditData(r); setForm({ username: r.username, password: '', firstName: r.firstName||'', lastName: r.lastName||'', email: r.email||'', phone: r.phone||'', role: r.role, cityId: r.cityId?._id||'' }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
+        <button onClick={() => { setEditData(r); setForm({ username: r.username, password: '', firstName: r.firstName||'', lastName: r.lastName||'', email: r.email||'', phone: r.phone||'', role: r.role, cityId: typeof r.cityId === 'string' ? r.cityId : r.cityId?._id || '' }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
         <button onClick={() => handleDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
       </div>
     )},
@@ -78,14 +79,14 @@ export default function UsersPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Role</label>
-              <select value={form.role} onChange={e=>setForm({...form, role: e.target.value})} className="input-modern">
+              <select value={form.role} onChange={e=>setForm({...form, role: e.target.value as User['role']})} className="input-modern">
                 <option value="USER">Citizen</option><option value="VENDOR">Vendor</option><option value="TRANSPORT">Transport</option><option value="SUPERADMIN">Super Admin</option>
               </select>
             </div>
             <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">City</label>
               <select value={form.cityId} onChange={e=>setForm({...form, cityId: e.target.value})} className="input-modern">
                 <option value="">Select</option>
-                {cities.map((c:any)=><option key={c._id} value={c._id}>{c.cityName}</option>)}
+                {cities.map((c)=><option key={c._id} value={c._id}>{c.cityName}</option>)}
               </select>
             </div>
           </div>

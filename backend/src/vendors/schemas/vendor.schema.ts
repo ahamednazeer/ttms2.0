@@ -11,3 +11,5 @@ export class Vendor {
   @Prop({ default: true }) active: boolean;
 }
 export const VendorSchema = SchemaFactory.createForClass(Vendor);
+VendorSchema.index({ vendorName: 1 }, { unique: true });
+VendorSchema.index({ email: 1 }, { unique: true, sparse: true });

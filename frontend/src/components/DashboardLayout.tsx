@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, ReactNode } from 'reac
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
 import { realtimeClient } from '@/lib/realtime';
+import type { User } from '@/lib/types';
 import {
   Truck,
   SignOut,
@@ -34,6 +35,8 @@ interface DashboardLayoutProps {
   userName?: string;
   userEmail?: string;
 }
+
+type SessionUser = Partial<User> & Pick<User, 'role'>;
 
 const MIN_WIDTH = 60;
 const COLLAPSED_WIDTH = 64;
@@ -77,7 +80,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
@@ -133,7 +136,7 @@ export default function DashboardLayout({
   useEffect(() => {
     async function checkAuth() {
       if (propRole) {
-        setUser({ role: propRole, firstName: propName, email: propEmail });
+        setUser({ role: propRole as User['role'], firstName: propName, email: propEmail });
         setLoading(false);
         return;
       }
@@ -185,6 +188,10 @@ export default function DashboardLayout({
   const menuItems = menuItemsByRole[role] || menuItemsByRole.USER;
   const isCollapsed = sidebarWidth < 150;
   const showLabels = sidebarWidth >= 150 && !isHidden;
+  const currentMenuItem = menuItems.find((item) => pathname === item.path) ||
+    menuItems.find((item) => pathname.startsWith(`${item.path}/`));
+  const pageTitle = currentMenuItem?.label || 'Dashboard';
+  const roleLabel = role.replace('_', ' ');
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -257,7 +264,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 overflow-auto relative z-10">
         {/* Header */}
-        <div className="print:hidden backdrop-blur-md bg-slate-950/80 border-b border-slate-700 sticky top-0 z-40">
+        <div className="print:hidden backdrop-blur-md bg-slate-950/80 border-b border-slate-800 sticky top-0 z-40">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               {isHidden && (
@@ -270,7 +277,8 @@ export default function DashboardLayout({
                 </button>
               )}
               <div>
-                <h2 className="font-chivo font-bold text-xl uppercase tracking-wider">Dashboard</h2>
+                <p className="section-title">TTMS / {roleLabel}</p>
+                <h2 className="font-chivo font-bold text-2xl uppercase tracking-wider mt-1">{pageTitle}</h2>
                 <p className="text-xs text-slate-400 font-mono mt-1">Welcome back, {name}</p>
               </div>
             </div>

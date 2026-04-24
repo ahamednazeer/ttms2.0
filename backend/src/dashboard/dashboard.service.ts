@@ -17,7 +17,29 @@ export class DashboardService {
     private ticketsService: TicketsService,
   ) {}
 
-  async getStats() {
+  async getStats(actor?: { role: string; vendorId?: string }) {
+    if (actor?.role === 'VENDOR') {
+      const vendor = actor.vendorId ? await this.vendorsService.findOne(actor.vendorId) : null;
+      const vendorCityId = vendor && typeof vendor.cityId !== 'string' ? vendor.cityId?._id : undefined;
+      const pendingQueueCount = vendorCityId
+        ? await this.ticketsService.count({ status: 'PENDING', cityId: vendorCityId })
+        : 0;
+      const [transportCount, assignedCount, completedCount] = await Promise.all([
+        this.transportsService.count(actor.vendorId ? { vendorId: actor.vendorId } : { _id: null }),
+        this.ticketsService.count(actor.vendorId ? { vendorId: actor.vendorId } : { _id: null }),
+        this.ticketsService.count(actor.vendorId ? { vendorId: actor.vendorId, status: 'COMPLETED' } : { _id: null }),
+      ]);
+
+      return {
+        transportCount,
+        rideTicketCount: pendingQueueCount + assignedCount,
+        ticketsByStatus: {
+          PENDING: pendingQueueCount,
+          COMPLETED: completedCount,
+        },
+      };
+    }
+
     const [cityCount, locationCount, vendorCount, userCount, transportCount, rideTicketCount, ticketsByStatus] =
       await Promise.all([
         this.citiesService.count(),
