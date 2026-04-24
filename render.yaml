@@ -24,8 +24,3 @@ services:
         value: production
       - key: PORT
         value: 3000
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: ttms-backend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
