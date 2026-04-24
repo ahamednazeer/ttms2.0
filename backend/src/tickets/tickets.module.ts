@@ -9,6 +9,8 @@ import { Transport, TransportSchema } from '../transports/schemas/transport.sche
 import { Location, LocationSchema } from '../locations/schemas/location.schema';
 import { AuditModule } from '../audit/audit.module';
 import { Vendor, VendorSchema } from '../vendors/schemas/vendor.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,10 +19,12 @@ import { Vendor, VendorSchema } from '../vendors/schemas/vendor.schema';
       { name: Transport.name, schema: TransportSchema },
       { name: Location.name, schema: LocationSchema },
       { name: Vendor.name, schema: VendorSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     LocationCostsModule,
     RealtimeModule,
     AuditModule,
+    NotificationsModule,
   ],
   controllers: [TicketsController],
   providers: [TicketsService],

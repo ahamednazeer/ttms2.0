@@ -19,13 +19,14 @@ export default function CitizenHistoryPage() {
     { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading your journey history...</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-        <ClockCounterClockwise size={28} weight="duotone" className="text-slate-400" /> My Journeys
+        <ClockCounterClockwise size={28} weight="duotone" className="text-slate-400" /> Journey History
       </h1>
+      <p className="page-subtitle">Review previous bookings, assigned vehicles, fares, and final trip status.</p>
       <DataTable data={tickets} columns={columns} emptyMessage="No journeys yet" />
     </div>
   );

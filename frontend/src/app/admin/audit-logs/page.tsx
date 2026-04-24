@@ -73,7 +73,7 @@ export default function AuditLogsPage() {
   ];
 
   if (loading) {
-    return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+    return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading audit activity...</div>;
   }
 
   return (
@@ -82,7 +82,7 @@ export default function AuditLogsPage() {
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
           <ShieldCheck size={28} weight="duotone" className="text-cyan-400" /> Audit Logs
         </h1>
-        <p className="page-subtitle font-mono">Recent auth and ticket mutation activity</p>
+        <p className="page-subtitle font-mono">Review authentication events and sensitive operational changes across the platform.</p>
       </div>
 
       <form onSubmit={handleApplyFilters} className="card grid grid-cols-1 md:grid-cols-5 gap-4">

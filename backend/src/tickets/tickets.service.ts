@@ -7,6 +7,8 @@ import { RealtimeService } from '../realtime/realtime.service';
 import { Transport, TransportDocument } from '../transports/schemas/transport.schema';
 import { Location, LocationDocument } from '../locations/schemas/location.schema';
 import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface ActorContext {
   sub: string;
@@ -23,8 +25,10 @@ export class TicketsService {
     @InjectModel(Transport.name) private transportModel: Model<TransportDocument>,
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
     @InjectModel(Vendor.name) private vendorModel: Model<VendorDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private locationCostsService: LocationCostsService,
     private realtimeService: RealtimeService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private populateFields = 'userId cityId pickupLocationId dropLocationId transportId vendorId';
@@ -106,6 +110,7 @@ export class TicketsService {
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
     this.emitTicketUpdate(populated, 'created');
+    this.dispatchNotification(() => this.notifyTicketCreated(populated));
     return populated;
   }
 
@@ -142,6 +147,7 @@ export class TicketsService {
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
     this.emitTicketUpdate(populated, 'assigned');
+    this.dispatchNotification(() => this.notifyTicketAssigned(populated));
     return populated;
   }
 
@@ -162,6 +168,7 @@ export class TicketsService {
     console.log(`OTP for ticket ${ticketId}: ${otp}`);
 
     this.emitTicketUpdate(populated, 'started');
+    this.dispatchNotification(() => this.notifyRideStarted(populated));
     return populated;
   }
 
@@ -191,6 +198,7 @@ export class TicketsService {
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
     this.emitTicketUpdate(populated, 'completed');
+    this.dispatchNotification(() => this.notifyRideCompleted(populated));
     return populated;
   }
 
@@ -265,5 +273,131 @@ export class TicketsService {
     if (value._id) return String(value._id);
     if (value.toString) return value.toString();
     return String(value);
+  }
+
+  private async notifyTicketCreated(ticket: any) {
+    const citizen = this.toRecipient(ticket.userId);
+    const journey = this.buildJourneyDetails(ticket);
+
+    await Promise.allSettled([
+      this.notificationsService.sendRideRequested(citizen, journey),
+      this.notificationsService.sendVendorQueueAlerts(await this.getVendorDispatchRecipients(ticket.cityId), journey),
+    ]);
+  }
+
+  private async notifyTicketAssigned(ticket: any) {
+    const transportUser = await this.userModel.findOne({
+      role: 'TRANSPORT',
+      transportId: this.normalizeId(ticket.transportId),
+      active: true,
+      email: { $exists: true, $ne: '' },
+    }).select('email firstName lastName').lean();
+
+    const journey = this.buildJourneyDetails(ticket);
+    await Promise.allSettled([
+      this.notificationsService.sendRideAssigned(this.toRecipient(ticket.userId), journey),
+      transportUser
+        ? this.notificationsService.sendDriverAssigned(
+            {
+              email: transportUser.email,
+              name: [transportUser.firstName, transportUser.lastName].filter(Boolean).join(' ').trim() || undefined,
+            },
+            journey,
+          )
+        : Promise.resolve(false),
+    ]);
+  }
+
+  private async notifyRideStarted(ticket: any) {
+    await this.notificationsService.sendRideStarted(
+      this.toRecipient(ticket.userId),
+      this.buildJourneyDetails(ticket),
+    );
+  }
+
+  private async notifyRideCompleted(ticket: any) {
+    const journey = this.buildJourneyDetails(ticket);
+    await Promise.allSettled([
+      this.notificationsService.sendRideCompleted(this.toRecipient(ticket.userId), journey),
+      this.notificationsService.sendVendorJourneyCompleted(await this.getVendorRecipients(ticket.vendorId), journey),
+    ]);
+  }
+
+  private async getVendorDispatchRecipients(cityId: any) {
+    const vendors = await this.vendorModel.find({
+      cityId: this.normalizeId(cityId),
+      active: true,
+    }).select('email vendorName').lean();
+
+    const vendorIds = vendors.map((vendor) => vendor._id);
+    const vendorUsers = vendorIds.length
+      ? await this.userModel.find({
+          role: 'VENDOR',
+          vendorId: { $in: vendorIds },
+          active: true,
+          email: { $exists: true, $ne: '' },
+        }).select('email firstName lastName').lean()
+      : [];
+
+    return [
+      ...vendors.map((vendor) => ({ email: vendor.email, name: vendor.vendorName })),
+      ...vendorUsers.map((user) => ({
+        email: user.email,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined,
+      })),
+    ].filter((recipient) => !!recipient.email);
+  }
+
+  private async getVendorRecipients(vendorId: any) {
+    if (!vendorId) return [];
+    const vendor = await this.vendorModel.findById(vendorId).select('email vendorName').lean();
+    const vendorUsers = await this.userModel.find({
+      role: 'VENDOR',
+      vendorId: this.normalizeId(vendorId),
+      active: true,
+      email: { $exists: true, $ne: '' },
+    }).select('email firstName lastName').lean();
+
+    return [
+      vendor?.email ? { email: vendor.email, name: vendor.vendorName } : null,
+      ...vendorUsers.map((user) => ({
+        email: user.email,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined,
+      })),
+    ].filter(Boolean) as Array<{ email: string; name?: string }>;
+  }
+
+  private buildJourneyDetails(ticket: any) {
+    return {
+      requesterName: this.getDisplayName(ticket.userId),
+      pickup: ticket.pickupLocationId?.locationName || 'N/A',
+      drop: ticket.dropLocationId?.locationName || 'N/A',
+      city: ticket.cityId?.cityName || 'N/A',
+      date: ticket.pickupDate ? new Date(ticket.pickupDate).toLocaleString() : 'N/A',
+      vehicleNo: ticket.transportId?.vehicleNo || 'N/A',
+      driverName: ticket.transportId?.ownerDetails || 'N/A',
+      contact: ticket.transportId?.contact || 'N/A',
+      otp: ticket.otp || undefined,
+      cost: ticket.cost,
+    };
+  }
+
+  private toRecipient(entity: any) {
+    return {
+      email: entity?.email,
+      name: this.getDisplayName(entity),
+    };
+  }
+
+  private getDisplayName(entity: any) {
+    if (!entity) return undefined;
+    if (entity.firstName || entity.lastName) {
+      return [entity.firstName, entity.lastName].filter(Boolean).join(' ').trim();
+    }
+    return entity.username || entity.vendorName || entity.ownerDetails || undefined;
+  }
+
+  private dispatchNotification(task: () => Promise<unknown>) {
+    void task().catch(() => undefined);
   }
 }

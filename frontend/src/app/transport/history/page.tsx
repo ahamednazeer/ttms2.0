@@ -19,13 +19,14 @@ export default function TransportHistoryPage() {
     { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading completed journeys...</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-        <ClockCounterClockwise size={28} weight="duotone" className="text-slate-400" /> Journey History
+        <ClockCounterClockwise size={28} weight="duotone" className="text-slate-400" /> Completed Journeys
       </h1>
+      <p className="page-subtitle">View completed trips, verified fares, and past service activity.</p>
       <DataTable data={tickets} columns={columns} emptyMessage="No completed journeys yet" />
     </div>
   );

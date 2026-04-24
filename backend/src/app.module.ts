@@ -13,6 +13,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AuditModule } from './audit/audit.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
@@ -27,7 +28,7 @@ const isProduction = process.env.NODE_ENV === 'production';
         limit: 120,
       },
     ]),
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/ttms'),
+    MongooseModule.forRoot(process.env.MONGODB_URI as string),
     AuthModule,
     AuditModule,
     CitiesModule,
@@ -37,6 +38,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     UsersModule,
     TransportsModule,
     RealtimeModule,
+    NotificationsModule,
     TicketsModule,
     InvoicesModule,
     DashboardModule,
@@ -44,12 +46,12 @@ const isProduction = process.env.NODE_ENV === 'production';
   providers: [
     ...(isProduction
       ? [
-          {
-            provide: APP_GUARD,
-            useClass: ThrottlerGuard,
-          },
-        ]
+        {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+        },
+      ]
       : []),
   ],
 })
-export class AppModule {}
+export class AppModule { }

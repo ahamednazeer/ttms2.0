@@ -44,6 +44,30 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Email notifications
+
+TTMS now supports operational email notifications for:
+
+- user account provisioning and credential updates
+- citizen ride request confirmation
+- vendor dispatch queue alerts
+- ride assignment, ride start, OTP delivery, and ride completion
+- vendor invoice generation
+
+Configure these environment variables in `backend/.env` to enable SMTP delivery:
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+SMTP_FROM=TTMS <no-reply@example.com>
+APP_BASE_URL=http://localhost:3000
+```
+
+If SMTP is not configured, the system keeps working and safely skips email delivery.
+
 ## Run tests
 
 ```bash

@@ -34,8 +34,8 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (r: User) => {
-    if (!confirm('Delete?')) return;
-    try { await api.deleteUser(r._id); toast.success('Deleted'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete user'); }
+    if (!confirm('Delete this user account?')) return;
+    try { await api.deleteUser(r._id); toast.success('User removed successfully'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete user'); }
   };
 
   const columns = [
@@ -52,18 +52,19 @@ export default function UsersPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading user accounts...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <Users size={28} weight="duotone" className="text-green-400" /> User Management
+          <Users size={28} weight="duotone" className="text-green-400" /> Users
         </h1>
-        <button onClick={() => { setEditData(null); setForm({ username: '', password: '', firstName: '', lastName: '', email: '', phone: '', role: 'USER', cityId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2"><Plus size={16}/> Add User</button>
+        <button onClick={() => { setEditData(null); setForm({ username: '', password: '', firstName: '', lastName: '', email: '', phone: '', role: 'USER', cityId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2"><Plus size={16}/> New User</button>
       </div>
+      <p className="page-subtitle">Create and maintain platform access for citizens, vendors, drivers, and administrators.</p>
       <DataTable data={users} columns={columns} />
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editData ? 'Edit User' : 'Add User'} size="lg">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editData ? 'Edit User' : 'Create User'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Username</label><input value={form.username} onChange={e=>setForm({...form, username: e.target.value})} required className="input-modern" disabled={!!editData}/></div>

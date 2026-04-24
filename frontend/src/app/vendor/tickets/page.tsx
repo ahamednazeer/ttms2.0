@@ -30,7 +30,7 @@ export default function VendorTicketsPage() {
   useTicketRealtime(refreshTickets);
 
   const handleAssign = async (ticketId: string, transportId: string) => {
-    try { await api.assignTransport(ticketId, transportId); toast.success('Assigned'); await refreshTickets(); }
+    try { await api.assignTransport(ticketId, transportId); toast.success('Transport assigned successfully'); await refreshTickets(); }
     catch (err: any) { toast.error(err.message); }
   };
 
@@ -42,19 +42,20 @@ export default function VendorTicketsPage() {
     { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
     { key: 'transport', label: 'Transport', render: (r: any) => r.status === 'PENDING' ? (
       <select onChange={e => { if (e.target.value) handleAssign(r._id, e.target.value); }} className="input-modern text-xs py-1" defaultValue="">
-        <option value="">Assign...</option>
+        <option value="">Select transport...</option>
         {transports.map((t: any) => <option key={t._id} value={t._id}>{t.vehicleNo}</option>)}
       </select>
     ) : r.transportId?.vehicleNo || '-' },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading dispatch queue...</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-        <Ticket size={28} weight="duotone" className="text-blue-400" /> My Fleet Tickets
+        <Ticket size={28} weight="duotone" className="text-blue-400" /> Dispatch Queue
       </h1>
+      <p className="page-subtitle">Review pending city requests, assign vehicles, and monitor journeys already linked to your fleet.</p>
       <DataTable data={tickets} columns={columns} />
     </div>
   );

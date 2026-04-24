@@ -48,17 +48,19 @@ export default function InvoicesPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading invoices...</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-        <Invoice size={28} weight="duotone" className="text-orange-400" /> Invoice Management
+        <Invoice size={28} weight="duotone" className="text-orange-400" /> Invoices
       </h1>
+      <p className="page-subtitle">Generate vendor billing statements and review historical invoice output.</p>
 
       {/* Generate Invoice */}
       <div className="bg-slate-800/40 border border-slate-700/60 rounded-sm p-6">
         <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-4">Generate Invoice</h3>
+        <p className="text-slate-400 text-sm mb-4">Create a billing run for a selected vendor and reporting month.</p>
         <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Vendor</label>

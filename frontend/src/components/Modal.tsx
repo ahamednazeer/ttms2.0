@@ -2,6 +2,7 @@
 
 import React, { ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export default function Modal({
   children,
   size = 'md',
 }: ModalProps) {
+  const { theme, mounted } = useTheme();
+  const isDark = !mounted || theme === 'dark';
   useEffect(() => {
     if (!isOpen) return;
 
@@ -48,7 +51,8 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={isDark ? { background: 'rgba(15, 23, 42, 0.7)' } : { background: 'color-mix(in srgb, var(--overlay) 100%, transparent)' }}
       onClick={onClose}
       role="presentation"
     >
@@ -59,13 +63,16 @@ export default function Modal({
         aria-modal="true"
         aria-label={title}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/90">
-          <h2 className="text-xl font-chivo font-bold uppercase tracking-wider text-slate-100">
+        <div className="flex items-center justify-between px-6 py-5 border-b" style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' }}>
+          <h2 className={`text-xl font-chivo font-bold uppercase tracking-wider ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-700/80 bg-slate-900/70 p-2 text-slate-400 hover:text-slate-100 hover:border-slate-600"
+            className={`rounded-lg p-2 ${isDark ? 'text-slate-400 hover:text-slate-100' : 'secondary-text hover:primary-text'}`}
+            style={isDark
+              ? { border: '1px solid rgba(51, 65, 85, 0.8)', background: 'rgba(15, 23, 42, 0.7)' }
+              : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-2) 78%, transparent)' }}
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />

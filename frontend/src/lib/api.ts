@@ -90,6 +90,20 @@ class ApiClient {
     return this.request('/auth/me');
   }
 
+  async requestPasswordReset(identifier: string) {
+    return this.request('/auth/request-password-reset', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    });
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
   // ============ Cities ============
   async getCities(): Promise<City[]> {
     return this.request('/city');

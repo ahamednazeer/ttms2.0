@@ -52,8 +52,8 @@ export default function VendorsPage() {
   };
 
   const handleDelete = async (r: Vendor) => {
-    if (!confirm('Delete?')) return;
-    try { await api.deleteVendor(r._id); toast.success('Deleted'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete vendor'); }
+    if (!confirm('Delete this vendor record?')) return;
+    try { await api.deleteVendor(r._id); toast.success('Vendor removed successfully'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete vendor'); }
   };
 
   const columns = [
@@ -70,7 +70,7 @@ export default function VendorsPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading vendor records...</div>;
 
   return (
     <div className="space-y-6">
@@ -78,12 +78,13 @@ export default function VendorsPage() {
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
           <Storefront size={28} weight="duotone" className="text-purple-400" /> Vendors
         </h1>
-        <button onClick={() => { setEditData(null); setForm({ vendorName: '', contact: '', email: '', cityId: '', userId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2"><Plus size={16}/> Add</button>
+        <button onClick={() => { setEditData(null); setForm({ vendorName: '', contact: '', email: '', cityId: '', userId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2"><Plus size={16}/> New Vendor</button>
       </div>
+      <p className="page-subtitle">Manage vendor partners, their operating city, and the linked portal account used for scoped access.</p>
       <DataTable data={vendors} columns={columns} />
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editData ? 'Edit Vendor' : 'Add Vendor'}>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editData ? 'Edit Vendor' : 'Create Vendor'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="info-strip">Link the vendor login here so vendor dashboards show only this vendor’s data automatically.</div>
+          <div className="info-strip">Link the vendor account here so dashboards, tickets, and fleet data stay scoped to the correct partner automatically.</div>
           <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Name</label><input value={form.vendorName} onChange={e=>setForm({...form, vendorName: e.target.value})} required className="input-modern"/></div>
           <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Contact</label><input value={form.contact} onChange={e=>setForm({...form, contact: e.target.value})} className="input-modern"/></div>
           <div><label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Email</label><input value={form.email} onChange={e=>setForm({...form, email: e.target.value})} className="input-modern"/></div>

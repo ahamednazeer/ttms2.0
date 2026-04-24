@@ -1,5 +1,6 @@
 import React, { ReactNode, useMemo, useState } from 'react';
 import { ArrowUpDown, Search } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface Column<T> {
   key: keyof T | string;
@@ -21,6 +22,8 @@ export default function DataTable<T extends { _id?: string; id?: string | number
   onRowClick,
   emptyMessage = 'No data available',
 }: DataTableProps<T>) {
+  const { theme, mounted } = useTheme();
+  const isDark = !mounted || theme === 'dark';
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -83,25 +86,35 @@ export default function DataTable<T extends { _id?: string; id?: string | number
   if (sortedData.length === 0) {
     return (
       <div className="panel text-center py-14 px-6">
-        <div className="mx-auto mb-4 h-12 w-12 rounded-2xl border border-slate-700/80 bg-slate-900/70 flex items-center justify-center text-slate-500 font-mono text-lg">
+        <div
+          className={`mx-auto mb-4 h-12 w-12 rounded-2xl flex items-center justify-center font-mono text-lg ${isDark ? 'text-slate-500' : 'muted-text'}`}
+          style={isDark
+            ? { border: '1px solid rgba(71, 85, 105, 0.8)', background: 'rgba(15, 23, 42, 0.7)' }
+            : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-2) 86%, transparent)' }}
+        >
           0
         </div>
-        <p className="text-slate-300 font-medium">Nothing to show yet</p>
-        <p className="text-slate-500 font-mono text-sm mt-2">{emptyMessage}</p>
+        <p className={`font-medium ${isDark ? 'text-slate-300' : 'text-[color:var(--text-primary)]'}`}>Nothing to show yet</p>
+        <p className={`font-mono text-sm mt-2 ${isDark ? 'text-slate-500' : 'muted-text'}`}>{emptyMessage}</p>
       </div>
     );
   }
 
   return (
     <div className="panel overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/90 bg-slate-900/60">
+      <div
+        className="flex items-center justify-between px-6 py-4 border-b"
+        style={isDark
+          ? { borderColor: 'rgba(30, 41, 59, 0.9)', background: 'rgba(15, 23, 42, 0.6)' }
+          : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 72%, transparent)' }}
+      >
         <div>
           <p className="section-title">Results</p>
-          <p className="text-slate-400 text-sm mt-1">{filteredData.length} record{filteredData.length === 1 ? '' : 's'}</p>
+          <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'secondary-text'}`}>{filteredData.length} record{filteredData.length === 1 ? '' : 's'}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-slate-500' : 'muted-text'}`} />
             <input
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
@@ -110,7 +123,7 @@ export default function DataTable<T extends { _id?: string; id?: string | number
             />
           </div>
           {sortConfig && (
-            <p className="text-slate-500 text-xs font-mono uppercase tracking-wider">
+            <p className={`text-xs font-mono uppercase tracking-wider ${isDark ? 'text-slate-500' : 'muted-text'}`}>
               Sorted by {sortConfig.key} ({sortConfig.direction})
             </p>
           )}
@@ -118,21 +131,27 @@ export default function DataTable<T extends { _id?: string; id?: string | number
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px]">
-          <thead className="bg-slate-900/80 sticky top-0 z-10">
+          <thead
+            className="sticky top-0 z-10"
+            style={isDark
+              ? { background: 'rgba(15, 23, 42, 0.8)' }
+              : { background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' }}
+          >
             <tr>
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className="px-6 py-4 text-left text-xs font-mono text-slate-500 uppercase tracking-wider border-b border-slate-800/90"
+                  className={`px-6 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${isDark ? 'text-slate-500' : 'muted-text'}`}
+                  style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' }}
                 >
                   {column.sortable ? (
                     <button
                       type="button"
                       onClick={() => toggleSort(String(column.key))}
-                      className="flex items-center gap-2 hover:text-slate-300"
+                      className={`flex items-center gap-2 ${isDark ? 'hover:text-slate-300' : 'hover:text-[color:var(--text-primary)]'}`}
                     >
                       {column.label}
-                      <ArrowUpDown className="w-3 h-3 text-slate-600" />
+                      <ArrowUpDown className={`w-3 h-3 ${isDark ? 'text-slate-600' : 'secondary-text'}`} />
                     </button>
                   ) : (
                     <div className="flex items-center gap-2">{column.label}</div>
@@ -141,15 +160,27 @@ export default function DataTable<T extends { _id?: string; id?: string | number
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/70">
+          <tbody style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.7)' } : { borderColor: 'var(--border)' }}>
             {paginatedData.map((item, rowIndex) => (
               <tr
                 key={(item as any)._id || (item as any).id || rowIndex}
                 onClick={() => onRowClick?.(item)}
-                className={`transition-colors odd:bg-slate-950/10 hover:bg-slate-800/50 ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={`transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                style={isDark
+                  ? {
+                      background: rowIndex % 2 === 0 ? 'rgba(2, 6, 23, 0.1)' : 'rgba(15, 23, 42, 0.18)',
+                      borderTop: rowIndex === 0 ? 'none' : '1px solid rgba(30, 41, 59, 0.7)',
+                    }
+                  : {
+                      background: rowIndex % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 32%, transparent)',
+                      borderTop: rowIndex === 0 ? 'none' : '1px solid var(--border)',
+                    }}
               >
                 {columns.map((column, colIndex) => (
-                  <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-slate-200">
+                  <td
+                    key={colIndex}
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}
+                  >
                     {column.render
                       ? column.render(item)
                       : String((item as any)[column.key] || '-')}
@@ -161,8 +192,13 @@ export default function DataTable<T extends { _id?: string; id?: string | number
         </table>
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800/90 bg-slate-900/40">
-          <p className="text-slate-500 text-sm">
+        <div
+          className="flex items-center justify-between px-6 py-4 border-t"
+          style={isDark
+            ? { borderColor: 'rgba(30, 41, 59, 0.9)', background: 'rgba(15, 23, 42, 0.4)' }
+            : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 52%, transparent)' }}
+        >
+          <p className={`text-sm ${isDark ? 'text-slate-500' : 'muted-text'}`}>
             Page {currentPage} of {totalPages}
           </p>
           <div className="flex gap-2">

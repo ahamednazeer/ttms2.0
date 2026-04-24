@@ -68,7 +68,7 @@ export default function TransportDashboard() {
     return (
       <EmptyState
         title="No Active Journey"
-        description="You’re all caught up. This screen updates automatically when a new ride is assigned."
+        description="There are no journeys assigned right now. This screen refreshes automatically when a new trip is dispatched."
         icon={CarSimple}
       />
     );

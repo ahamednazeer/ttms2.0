@@ -22,6 +22,8 @@ import {
   Path,
   Storefront,
 } from '@phosphor-icons/react';
+import ThemeToggle from '@/components/ThemeToggle';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface MenuItem {
   icon: React.ElementType;
@@ -79,6 +81,7 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, mounted } = useTheme();
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,10 +176,10 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="app-shell min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Truck size={48} className="text-blue-500 animate-pulse mx-auto" />
-          <div className="text-slate-500 font-mono text-sm animate-pulse">VERIFYING CREDENTIALS...</div>
+          <Truck size={48} className="text-[color:var(--accent)] animate-pulse mx-auto" />
+          <div className="muted-text font-mono text-sm animate-pulse">VERIFYING CREDENTIALS...</div>
         </div>
       </div>
     );
@@ -186,6 +189,7 @@ export default function DashboardLayout({
   const name = propName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'User');
   const email = propEmail || user?.email || '';
   const menuItems = menuItemsByRole[role] || menuItemsByRole.USER;
+  const isDark = !mounted || theme === 'dark';
   const isCollapsed = sidebarWidth < 150;
   const showLabels = sidebarWidth >= 150 && !isHidden;
   const currentMenuItem = menuItems.find((item) => pathname === item.path) ||
@@ -194,23 +198,32 @@ export default function DashboardLayout({
   const roleLabel = role.replace('_', ' ');
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
+    <div className={`${isDark ? 'min-h-screen bg-slate-950' : 'app-shell min-h-screen'} flex`}>
       <div className="scanlines" />
 
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`print:hidden bg-slate-900 border-r border-slate-800 h-screen sticky top-0 flex flex-col z-50 transition-all ${isResizing ? 'transition-none' : 'duration-200'
+        className={`print:hidden h-screen sticky top-0 flex flex-col z-50 transition-all ${isDark ? 'bg-slate-900 border-r border-slate-800' : 'border-r' } ${isResizing ? 'transition-none' : 'duration-200'
           } ${isHidden ? 'w-0 overflow-hidden border-0' : ''}`}
-        style={{ width: isHidden ? 0 : sidebarWidth }}
+        style={isDark
+          ? { width: isHidden ? 0 : sidebarWidth }
+          : {
+              width: isHidden ? 0 : sidebarWidth,
+              background: 'color-mix(in srgb, var(--surface-1) 96%, transparent)',
+              borderColor: 'var(--border)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
       >
         {/* Header */}
-        <div className={`p-4 border-b border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-          <Truck size={28} weight="duotone" className="text-blue-400 flex-shrink-0" />
+        <div
+          className={`p-4 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}
+        >
+          <Truck size={28} weight="duotone" className={`${isDark ? 'text-blue-400' : 'text-[color:var(--accent)]'} flex-shrink-0`} />
           {showLabels && (
             <div className="overflow-hidden">
-              <h1 className="font-chivo font-bold text-sm uppercase tracking-wider whitespace-nowrap">TTMS</h1>
-              <p className="text-xs text-slate-500 font-mono">{role.replace('_', ' ')}</p>
+              <h1 className={`font-chivo font-bold text-sm uppercase whitespace-nowrap ${isDark ? 'tracking-wider text-slate-100' : 'tracking-[0.18em] text-[color:var(--text-primary)]'}`}>TTMS</h1>
+              <p className={`text-xs font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`}>{role.replace('_', ' ')}</p>
             </div>
           )}
         </div>
@@ -225,11 +238,16 @@ export default function DashboardLayout({
                 <li key={item.path}>
                   <button
                     onClick={() => router.push(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all duration-150 text-sm font-medium ${isCollapsed ? 'justify-center' : ''
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 ${isDark ? 'rounded-sm' : 'rounded-lg'} transition-all duration-150 text-sm font-medium ${isCollapsed ? 'justify-center' : ''
                       } ${isActive
-                        ? 'text-blue-400 bg-blue-950/50 border-l-2 border-blue-400'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                        ? isDark
+                          ? 'text-blue-400 bg-blue-950/50 border-l-2 border-blue-400'
+                          : 'text-[color:var(--accent)] bg-[color:var(--accent-soft)]'
+                        : isDark
+                          ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                          : 'secondary-text hover:primary-text hover:bg-[color:var(--surface-3)]'
                       }`}
+                    style={!isDark && isActive ? { boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent)' } : undefined}
                     title={isCollapsed ? item.label : undefined}
                   >
                     <Icon size={20} weight="duotone" className="flex-shrink-0" />
@@ -242,10 +260,10 @@ export default function DashboardLayout({
         </nav>
 
         {/* Logout */}
-        <div className="p-2 border-t border-slate-800">
+        <div className="p-2">
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-red-400 hover:text-red-300 hover:bg-slate-800 rounded-sm transition-all duration-150 text-sm font-medium ${isCollapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 ${isDark ? 'rounded-sm text-red-400 hover:text-red-300 hover:bg-slate-800' : 'rounded-lg text-[color:var(--danger)] hover:bg-[color:var(--surface-3)]'} transition-all duration-150 text-sm font-medium ${isCollapsed ? 'justify-center' : ''}`}
             title={isCollapsed ? 'Sign Out' : undefined}
           >
             <SignOut size={20} className="flex-shrink-0" />
@@ -264,13 +282,13 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 overflow-auto relative z-10">
         {/* Header */}
-        <div className="print:hidden backdrop-blur-md bg-slate-950/80 border-b border-slate-800 sticky top-0 z-40">
+        <div className="print:hidden relative z-40">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               {isHidden && (
                 <button
                   onClick={() => { setIsHidden(false); setSidebarWidth(DEFAULT_WIDTH); }}
-                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
+                  className={`p-2 transition-colors ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded' : 'secondary-text hover:primary-text hover:bg-[color:var(--surface-3)] rounded-lg'}`}
                   title="Show Sidebar"
                 >
                   <List size={24} />
@@ -278,19 +296,27 @@ export default function DashboardLayout({
               )}
               <div>
                 <p className="section-title">TTMS / {roleLabel}</p>
-                <h2 className="font-chivo font-bold text-2xl uppercase tracking-wider mt-1">{pageTitle}</h2>
-                <p className="text-xs text-slate-400 font-mono mt-1">Welcome back, {name}</p>
+                <h2 className={`font-chivo font-bold text-2xl uppercase mt-1 ${isDark ? 'tracking-wider text-slate-100' : 'tracking-[0.08em] text-[color:var(--text-primary)]'}`}>{pageTitle}</h2>
+                <p className={`text-xs font-mono mt-1 ${isDark ? 'text-slate-400' : 'secondary-text'}`}>Welcome back, {name}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle className="hidden sm:inline-flex" />
               <div className="text-right hidden sm:block">
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-mono">Logged in as</p>
-                <p className="text-sm font-mono text-slate-300">{email}</p>
+                <p className={`text-xs uppercase tracking-wider font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`}>Logged in as</p>
+                <p className={`text-sm font-mono ${isDark ? 'text-slate-300' : 'text-[color:var(--text-secondary)]'}`}>{email}</p>
               </div>
-              <div className="h-9 w-9 rounded-full flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-br from-blue-600 to-blue-800 text-white font-bold text-sm">
+              <div className={`h-9 w-9 rounded-full flex items-center justify-center overflow-hidden text-white font-bold text-sm ${isDark ? 'shadow-lg bg-gradient-to-br from-blue-600 to-blue-800' : ''}`}
+                style={isDark ? undefined : {
+                  background: 'linear-gradient(135deg, var(--accent), #0ea5e9)',
+                  boxShadow: 'var(--shadow-md)',
+                }}>
                 {name?.charAt(0).toUpperCase() || 'U'}
               </div>
             </div>
+          </div>
+          <div className="px-6 pb-4 sm:hidden">
+            <ThemeToggle className="w-full justify-center" />
           </div>
         </div>
 

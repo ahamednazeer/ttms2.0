@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: ttms-backend
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+
+  - type: web
+    name: ttms-frontend
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: ttms-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

@@ -48,7 +48,7 @@ export default function AdminDashboard() {
           <Gauge size={28} weight="duotone" className="text-indigo-400" />
           Administration
         </h1>
-        <p className="page-subtitle mt-1">System overview, operational health, and quick navigation</p>
+        <p className="page-subtitle mt-1">Monitor platform activity, key operational metrics, and administrative workflows from one place.</p>
       </div>
 
       {/* Stats Grid */}

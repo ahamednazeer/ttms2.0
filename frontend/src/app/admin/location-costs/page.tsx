@@ -64,14 +64,15 @@ export default function LocationCostsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <CurrencyDollar size={28} weight="duotone" className="text-green-400" /> Location Cost Management
+          <CurrencyDollar size={28} weight="duotone" className="text-green-400" /> Route Pricing
         </h1>
         <button onClick={() => { setEditData(null); setForm({ fromLocationId: '', toLocationId: '', cityId: '', cost: '', distance: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Add Cost
+          <Plus size={16} /> New Route
         </button>
       </div>
+      <p className="page-subtitle">Define approved route distance and fare rules used for billing and invoice generation.</p>
       <DataTable data={costs} columns={columns} />
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Cost' : 'Add Cost'} size="lg">
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Route Pricing' : 'Create Route Pricing'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">City</label>

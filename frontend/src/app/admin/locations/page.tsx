@@ -71,16 +71,18 @@ export default function LocationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <MapPin size={28} weight="duotone" className="text-red-400" /> Location Management
+          <MapPin size={28} weight="duotone" className="text-red-400" /> Locations
         </h1>
         <button onClick={() => { setEditData(null); setForm({ locationName: '', cityId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Add Location
+          <Plus size={16} /> New Location
         </button>
       </div>
 
+      <p className="page-subtitle">Configure approved pickup and drop locations for each city.</p>
+
       <DataTable data={locations} columns={columns} />
 
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Location' : 'Add Location'}>
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Location' : 'Create Location'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">Location Name</label>

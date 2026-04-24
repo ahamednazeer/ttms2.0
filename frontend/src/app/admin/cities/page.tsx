@@ -93,16 +93,18 @@ export default function CitiesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
           <Buildings size={28} weight="duotone" className="text-indigo-400" />
-          City Management
+          Cities
         </h1>
         <button onClick={() => { setEditData(null); setForm({ cityName: '', cityId: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Add City
+          <Plus size={16} /> New City
         </button>
       </div>
 
+      <p className="page-subtitle">Maintain the list of supported cities used across ticketing, vendor operations, and reporting.</p>
+
       <DataTable data={cities} columns={columns} />
 
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit City' : 'Add City'}>
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit City' : 'Create City'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">City ID</label>

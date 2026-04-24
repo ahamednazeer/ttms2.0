@@ -22,11 +22,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.userModel
       .findById(payload.sub)
-      .select('username role cityId vendorId transportId active')
+      .select('username role cityId vendorId transportId active tokenVersion')
       .populate('cityId vendorId transportId');
 
     if (!user || user.active === false) {
       throw new UnauthorizedException('User is not active');
+    }
+
+    if ((user.tokenVersion || 0) !== (payload.tokenVersion || 0)) {
+      throw new UnauthorizedException('Session is no longer valid');
     }
 
     return {
@@ -36,6 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       cityId: user.cityId ? String((user.cityId as any)._id || user.cityId) : undefined,
       vendorId: user.vendorId ? String((user.vendorId as any)._id || user.vendorId) : undefined,
       transportId: user.transportId ? String((user.transportId as any)._id || user.transportId) : undefined,
+      tokenVersion: user.tokenVersion || 0,
     };
   }
 }

@@ -41,7 +41,7 @@ export default function TicketsPage() {
     if (!selected || !assignTransportId) return;
     try {
       await api.assignTransport(selected._id, assignTransportId);
-      toast.success('Transport assigned');
+      toast.success('Transport assigned successfully');
       setAssignModal(false); setSelected(null); setAssignTransportId(''); fetchData();
     } catch (err: any) { toast.error(err.message); }
   };
@@ -63,26 +63,27 @@ export default function TicketsPage() {
     )},
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading journey requests...</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-        <Ticket size={28} weight="duotone" className="text-blue-400" /> Ticket Management
+        <Ticket size={28} weight="duotone" className="text-blue-400" /> Journey Requests
       </h1>
+      <p className="page-subtitle">Review ticket status, inspect trip details, and intervene when operational support is needed.</p>
       <DataTable data={tickets} columns={columns} />
 
       {/* Assign Modal */}
       <Modal isOpen={assignModal} onClose={() => setAssignModal(false)} title="Assign Transport">
         <div className="space-y-4">
-          <p className="text-slate-400 text-sm">Assign a transport to ticket for <span className="text-blue-400">{selected?.userId?.firstName}</span></p>
+          <p className="text-slate-400 text-sm">Select a transport for <span className="text-blue-400">{selected?.userId?.firstName}</span> to move this request into dispatch.</p>
           <select value={assignTransportId} onChange={e => setAssignTransportId(e.target.value)} className="input-modern">
-            <option value="">Select Transport</option>
+            <option value="">Select a transport</option>
             {transports.map((t: any) => <option key={t._id} value={t._id}>{t.vehicleNo} - {t.ownerDetails}</option>)}
           </select>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setAssignModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleAssign} className="btn-primary" disabled={!assignTransportId}>Assign</button>
+            <button onClick={handleAssign} className="btn-primary" disabled={!assignTransportId}>Confirm Assignment</button>
           </div>
         </div>
       </Modal>

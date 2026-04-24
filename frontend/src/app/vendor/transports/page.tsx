@@ -114,7 +114,7 @@ export default function VendorTransportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <Truck size={28} weight="duotone" className="text-green-400" /> My Transports
+          <Truck size={28} weight="duotone" className="text-green-400" /> Fleet Vehicles
         </h1>
         <button
           onClick={() => {
@@ -124,16 +124,18 @@ export default function VendorTransportsPage() {
           }}
           className="btn-primary flex items-center gap-2"
         >
-          <Plus size={16} /> Add Transport
+          <Plus size={16} /> New Transport
         </button>
       </div>
+
+      <p className="page-subtitle">Manage the vehicles and driver details available for vendor-side dispatch.</p>
 
       <DataTable data={transports} columns={columns} />
 
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editData ? 'Edit Transport' : 'Add Transport'}
+        title={editData ? 'Edit Transport' : 'Create Transport'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

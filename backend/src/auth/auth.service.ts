@@ -1,16 +1,19 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { presentUser } from '../users/users.presenter';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    private notificationsService: NotificationsService,
   ) {
     this.seedDefaultUsers();
   }
@@ -43,6 +46,7 @@ export class AuthService {
       cityId: user.cityId ? String(user.cityId._id || user.cityId) : undefined,
       vendorId: user.vendorId ? String(user.vendorId._id || user.vendorId) : undefined,
       transportId: user.transportId ? String(user.transportId._id || user.transportId) : undefined,
+      tokenVersion: user.tokenVersion || 0,
     };
     const token = this.jwtService.sign(payload);
 
@@ -63,5 +67,70 @@ export class AuthService {
     const user = await this.userModel.findById(userId).select('-password').populate('cityId vendorId transportId');
     if (!user) throw new UnauthorizedException('User not found');
     return presentUser(user.toObject());
+  }
+
+  async requestPasswordReset(identifier: string) {
+    const user = await this.userModel
+      .findOne({
+        $or: [
+          { username: identifier },
+          { email: identifier },
+        ],
+      })
+      .select('+passwordResetToken +passwordResetExpiresAt');
+
+    if (user?.email) {
+      const token = randomBytes(32).toString('hex');
+      user.passwordResetToken = this.hashResetToken(token);
+      user.passwordResetExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      await user.save();
+      void this.notificationsService.sendPasswordReset(
+        {
+          email: user.email,
+          name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined,
+        },
+        token,
+      ).catch(() => undefined);
+    }
+
+    return {
+      message: 'If an account matches that username or email, password reset instructions have been sent.',
+    };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const user = await this.userModel
+      .findOne({
+        passwordResetToken: this.hashResetToken(token),
+        passwordResetExpiresAt: { $gt: new Date() },
+      })
+      .select('+passwordResetToken +passwordResetExpiresAt');
+
+    if (!user) {
+      throw new BadRequestException('Reset link is invalid or has expired');
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.passwordResetToken = undefined as any;
+    user.passwordResetExpiresAt = undefined as any;
+    await user.save();
+
+    void this.notificationsService.sendAccountUpdated(
+      {
+        email: user.email,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined,
+        username: user.username,
+      },
+      ['Password was updated through the account recovery flow.'],
+    ).catch(() => undefined);
+
+    return {
+      message: 'Password reset successful. You can now sign in with your new password.',
+    };
+  }
+
+  private hashResetToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
   }
 }

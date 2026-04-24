@@ -37,6 +37,15 @@ export class User {
 
   @Prop({ default: true })
   active: boolean;
+
+  @Prop({ default: 0 })
+  tokenVersion: number;
+
+  @Prop({ select: false })
+  passwordResetToken: string;
+
+  @Prop({ select: false })
+  passwordResetExpiresAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -132,7 +132,7 @@ export default function TransportsPage() {
   };
 
   const handleDelete = async (row: any) => {
-    if (!confirm('Delete?')) return;
+    if (!confirm('Delete this transport record?')) return;
     try {
       await api.deleteTransport(row._id);
       toast.success('Transport deleted');
@@ -167,30 +167,32 @@ export default function TransportsPage() {
     },
   ];
 
-  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading...</div>;
+  if (loading) return <div className="text-slate-500 font-mono text-center py-12 animate-pulse">Loading transport records...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <Truck size={28} weight="duotone" className="text-blue-400" /> Transport Management
+          <Truck size={28} weight="duotone" className="text-blue-400" /> Transport Fleet
         </h1>
         <button onClick={openCreateModal} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Add
+          <Plus size={16} /> New Transport
         </button>
       </div>
+
+      <p className="page-subtitle">Manage vehicles, assigned drivers, vendor ownership, and city-level availability.</p>
 
       <DataTable data={transports} columns={columns} />
 
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editData ? 'Edit Transport' : 'Add Transport'}
+        title={editData ? 'Edit Transport' : 'Create Transport'}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="info-strip">
-            Link the driver login here so the transport dashboard automatically shows rides for this vehicle. If driver details exist on that user, they auto-fill below.
+            Link the driver account here so the transport dashboard automatically shows journeys assigned to this vehicle. If profile details exist on that user, they auto-fill below.
           </div>
 
           <div className="grid grid-cols-2 gap-4">

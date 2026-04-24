@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDots, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface DatePickerProps {
   value: string;
@@ -49,6 +50,8 @@ export default function DatePicker({
   min,
   placeholder = 'Select travel date',
 }: DatePickerProps) {
+  const { theme, mounted } = useTheme();
+  const isDark = !mounted || theme === 'dark';
   const today = useMemo(() => startOfDay(new Date()), []);
   const minDate = useMemo(() => {
     const parsed = min ? parseDateValue(min) : null;
@@ -113,7 +116,7 @@ export default function DatePicker({
         }}
         className="input-modern flex items-center justify-between gap-3 text-left"
       >
-        <span className={value ? 'text-slate-100' : 'text-slate-500'}>
+        <span className={value ? (isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]') : (isDark ? 'text-slate-500' : 'muted-text')}>
           {value ? formatLabel(value) : placeholder}
         </span>
         <CalendarDots size={18} className="text-blue-400 shrink-0" />
@@ -122,21 +125,40 @@ export default function DatePicker({
       <input type="hidden" value={value} required readOnly />
 
       {isOpen && (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-700/80 bg-slate-900 p-4 shadow-2xl shadow-slate-950/60">
+        <div
+          className="absolute z-20 mt-2 w-full rounded-xl p-4"
+          style={isDark
+            ? {
+                border: '1px solid rgba(51, 65, 85, 0.8)',
+                background: '#0f172a',
+                boxShadow: '0 24px 48px rgba(2, 6, 23, 0.6)',
+              }
+            : {
+                border: '1px solid var(--border)',
+                background: 'var(--surface-2)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+        >
           <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => canGoToPreviousMonth && setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
               disabled={!canGoToPreviousMonth}
-              className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className={`flex h-9 w-9 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-lg'} transition disabled:cursor-not-allowed disabled:opacity-40`}
+              style={isDark
+                ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
+                : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
             >
               <CaretLeft size={16} />
             </button>
-            <div className="text-sm font-mono uppercase tracking-wider text-slate-300">{monthLabel}</div>
+            <div className={`text-sm font-mono uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-[color:var(--text-secondary)]'}`}>{monthLabel}</div>
             <button
               type="button"
               onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-slate-500 hover:text-white"
+              className={`flex h-9 w-9 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-lg'} transition`}
+              style={isDark
+                ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
+                : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
             >
               <CaretRight size={16} />
             </button>
@@ -144,7 +166,7 @@ export default function DatePicker({
 
           <div className="mb-2 grid grid-cols-7 gap-1">
             {WEEK_DAYS.map((day) => (
-              <div key={day} className="py-2 text-center text-xs font-mono uppercase text-slate-500">
+              <div key={day} className={`py-2 text-center text-xs font-mono uppercase ${isDark ? 'text-slate-500' : 'muted-text'}`}>
                 {day}
               </div>
             ))}
@@ -164,20 +186,23 @@ export default function DatePicker({
                   setIsOpen(false);
                 }}
                 className={[
-                  'h-10 rounded-sm border text-sm font-mono transition',
+                  `h-10 ${isDark ? 'rounded-sm' : 'rounded-lg'} border text-sm font-mono transition`,
                   isSelected
                     ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.35)]'
-                    : 'border-slate-800 bg-slate-950 text-slate-200 hover:border-slate-600 hover:bg-slate-800',
-                  isToday && !isSelected ? 'text-blue-300 border-slate-700' : '',
-                  disabled ? 'cursor-not-allowed opacity-30 hover:border-slate-800 hover:bg-slate-950' : '',
+                    : isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]',
+                  isToday && !isSelected ? (isDark ? 'text-blue-300' : 'text-blue-500') : '',
+                  disabled ? 'cursor-not-allowed opacity-30' : '',
                 ].join(' ')}
+                style={isSelected ? undefined : (isDark
+                  ? { borderColor: 'rgba(30, 41, 59, 1)', background: '#020617' }
+                  : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-3) 56%, transparent)' })}
               >
                 {day}
               </button>
             ))}
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3 text-xs font-mono text-slate-500">
+          <div className={`mt-4 flex items-center justify-between border-t pt-3 text-xs font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`} style={isDark ? { borderColor: 'rgba(30, 41, 59, 1)' } : { borderColor: 'var(--border)' }}>
             <span>Past dates disabled</span>
             <button
               type="button"

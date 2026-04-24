@@ -82,7 +82,7 @@ export default function CitizenPage() {
           <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
             <CarSimple size={28} weight="duotone" className="text-blue-400" /> Your Ride
           </h1>
-          <p className="page-subtitle">Live ride status, transport details, and OTP are shown here.</p>
+          <p className="page-subtitle">Track dispatch progress, driver details, and journey completion verification in real time.</p>
         </div>
         <div className="card space-y-5">
           <div className="flex justify-between items-center">
@@ -101,20 +101,29 @@ export default function CitizenPage() {
           </div>
           {activeTicket.transportId && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs">Vehicle</span><span className="text-slate-200">{getTransportValue(activeTicket.transportId, 'vehicleNo')}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs">Driver</span><span className="text-slate-200">{getTransportValue(activeTicket.transportId, 'ownerDetails')}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs">Contact</span><span className="text-slate-200">{getTransportValue(activeTicket.transportId, 'contact')}</span></div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Vehicle</p>
+                <p className="text-slate-100 font-semibold break-all">{getTransportValue(activeTicket.transportId, 'vehicleNo')}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Driver</p>
+                <p className="text-slate-100 font-semibold">{getTransportValue(activeTicket.transportId, 'ownerDetails')}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Contact</p>
+                <p className="text-slate-100 font-semibold break-all">{getTransportValue(activeTicket.transportId, 'contact')}</p>
+              </div>
             </div>
           )}
           {activeTicket.status === 'RIDE_STARTED' && activeTicket.otp && (
             <div className="bg-blue-950/50 border border-blue-700 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2"><Key size={20} className="text-blue-400" /><span className="text-blue-400 font-mono text-xs uppercase">Your OTP</span></div>
+              <div className="flex items-center justify-center gap-2 mb-2"><Key size={20} className="text-blue-400" /><span className="text-blue-400 font-mono text-xs uppercase">Journey OTP</span></div>
               <p className="text-4xl font-bold font-mono tracking-[0.5em] text-blue-300">{activeTicket.otp}</p>
-              <p className="text-xs text-slate-500 mt-2">Share this with your driver to complete the journey</p>
+              <p className="text-xs text-slate-500 mt-2">Share this code with your driver when the journey ends to confirm completion.</p>
             </div>
           )}
-          {activeTicket.status === 'PENDING' && <p className="text-slate-500 text-sm font-mono text-center">Waiting for transport assignment...</p>}
-          {activeTicket.status === 'ASSIGNED' && <p className="text-slate-500 text-sm font-mono text-center">Transport assigned. Waiting for pickup...</p>}
+          {activeTicket.status === 'PENDING' && <p className="text-slate-500 text-sm font-mono text-center">Your request has been received and is waiting for vendor assignment.</p>}
+          {activeTicket.status === 'ASSIGNED' && <p className="text-slate-500 text-sm font-mono text-center">A driver has been assigned. Please be ready for pickup.</p>}
         </div>
       </div>
     );
@@ -125,9 +134,9 @@ export default function CitizenPage() {
     <div className="max-w-lg mx-auto space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <Path size={28} weight="duotone" className="text-blue-400" /> Book a Ride
+          <Path size={28} weight="duotone" className="text-blue-400" /> Request a Ride
         </h1>
-        <p className="page-subtitle">Choose pickup, drop, and date to create a new transport request.</p>
+        <p className="page-subtitle">Choose your route and preferred journey date to submit a new transport request.</p>
       </div>
       <form onSubmit={handleBook} className="card space-y-5">
         <div>
