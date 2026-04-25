@@ -21,6 +21,7 @@ import {
   List,
   Path,
   Storefront,
+  X,
 } from '@phosphor-icons/react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useTheme } from '@/components/ThemeProvider';
@@ -90,6 +91,9 @@ export default function DashboardLayout({
   const [isHidden, setIsHidden] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
   useEffect(() => {
     const savedWidth = localStorage.getItem('ttms_sidebarWidth');
     const savedHidden = localStorage.getItem('ttms_sidebarHidden');
@@ -103,6 +107,17 @@ export default function DashboardLayout({
       localStorage.setItem('ttms_sidebarHidden', isHidden.toString());
     }
   }, [sidebarWidth, isHidden, isResizing]);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -190,8 +205,8 @@ export default function DashboardLayout({
   const email = propEmail || user?.email || '';
   const menuItems = menuItemsByRole[role] || menuItemsByRole.USER;
   const isDark = !mounted || theme === 'dark';
-  const isCollapsed = sidebarWidth < 150;
-  const showLabels = sidebarWidth >= 150 && !isHidden;
+  const isCollapsed = !isMobile && sidebarWidth < 150;
+  const showLabels = isMobile || (sidebarWidth >= 150 && !isHidden);
   const currentMenuItem = menuItems.find((item) => pathname === item.path) ||
     menuItems.find((item) => pathname.startsWith(`${item.path}/`));
   const pageTitle = currentMenuItem?.label || 'Dashboard';
@@ -201,19 +216,34 @@ export default function DashboardLayout({
     <div className={`${isDark ? 'min-h-screen bg-slate-950' : 'app-shell min-h-screen'} flex`}>
       <div className="scanlines" />
 
+      {/* Mobile Overlay */}
+      {isMobile && isMobileOpen && (
+        <div 
+          className="fixed inset-0 z-40 backdrop-blur-sm bg-black/20 dark:bg-black/40 transition-opacity"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`print:hidden h-screen sticky top-0 flex flex-col z-50 transition-all ${isDark ? 'bg-slate-900 border-r border-slate-800' : 'border-r' } ${isResizing ? 'transition-none' : 'duration-200'
-          } ${isHidden ? 'w-0 overflow-hidden border-0' : ''}`}
-        style={isDark
+        className={`print:hidden h-screen flex flex-col z-50 transition-all duration-200
+          ${isMobile 
+            ? `fixed inset-y-0 left-0 shadow-2xl ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}` 
+            : `sticky top-0 ${isResizing ? 'transition-none' : ''} ${isHidden ? 'w-0 overflow-hidden border-0' : ''}`
+          }
+          ${isDark ? 'bg-slate-900 border-r border-slate-800' : 'border-r'}`}
+        style={!isMobile ? (isDark
           ? { width: isHidden ? 0 : sidebarWidth }
           : {
               width: isHidden ? 0 : sidebarWidth,
               background: 'color-mix(in srgb, var(--surface-1) 96%, transparent)',
               borderColor: 'var(--border)',
               boxShadow: 'var(--shadow-sm)',
-            }}
+            }) : (isDark ? { background: '#0f172a' } : {
+              background: 'var(--surface-1)',
+              borderColor: 'var(--border)',
+            })}
       >
         {/* Header */}
         <div
@@ -221,9 +251,16 @@ export default function DashboardLayout({
         >
           <Truck size={28} weight="duotone" className={`${isDark ? 'text-blue-400' : 'text-[color:var(--accent)]'} flex-shrink-0`} />
           {showLabels && (
-            <div className="overflow-hidden">
-              <h1 className={`font-chivo font-bold text-sm uppercase whitespace-nowrap ${isDark ? 'tracking-wider text-slate-100' : 'tracking-[0.18em] text-[color:var(--text-primary)]'}`}>TTMS</h1>
-              <p className={`text-xs font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`}>{role.replace('_', ' ')}</p>
+            <div className="flex-1 overflow-hidden flex items-center justify-between">
+              <div>
+                <h1 className={`font-chivo font-bold text-sm uppercase whitespace-nowrap ${isDark ? 'tracking-wider text-slate-100' : 'tracking-[0.18em] text-[color:var(--text-primary)]'}`}>TTMS</h1>
+                <p className={`text-xs font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`}>{role.replace('_', ' ')}</p>
+              </div>
+              {isMobile && (
+                <button onClick={() => setIsMobileOpen(false)} className={`p-1.5 rounded-lg ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'secondary-text hover:bg-[color:var(--surface-3)]'}`}>
+                  <X size={20} />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -272,20 +309,30 @@ export default function DashboardLayout({
         </div>
 
         {/* Resize Handle */}
-        <div
-          className="absolute right-0 top-0 h-full w-1 cursor-ew-resize hover:bg-blue-500/50 active:bg-blue-500 transition-colors z-50"
-          onMouseDown={startResizing}
-          style={{ transform: 'translateX(50%)' }}
-        />
+        {!isMobile && (
+          <div
+            className="absolute right-0 top-0 h-full w-1 cursor-ew-resize hover:bg-blue-500/50 active:bg-blue-500 transition-colors z-50"
+            onMouseDown={startResizing}
+            style={{ transform: 'translateX(50%)' }}
+          />
+        )}
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto relative z-10">
+      <main className="flex-1 overflow-auto relative z-10 w-full">
         {/* Header */}
-        <div className="print:hidden relative z-40">
-          <div className="flex items-center justify-between px-6 py-4">
+        <div className="print:hidden relative z-30">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4">
             <div className="flex items-center gap-4">
-              {isHidden && (
+              {isMobile ? (
+                <button
+                  onClick={() => setIsMobileOpen(true)}
+                  className={`p-2 transition-colors ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded' : 'secondary-text hover:primary-text hover:bg-[color:var(--surface-3)] rounded-lg'}`}
+                  title="Menu"
+                >
+                  <List size={24} />
+                </button>
+              ) : isHidden && (
                 <button
                   onClick={() => { setIsHidden(false); setSidebarWidth(DEFAULT_WIDTH); }}
                   className={`p-2 transition-colors ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded' : 'secondary-text hover:primary-text hover:bg-[color:var(--surface-3)] rounded-lg'}`}
@@ -297,7 +344,7 @@ export default function DashboardLayout({
               <div>
                 <p className="section-title">TTMS / {roleLabel}</p>
                 <h2 className={`font-chivo font-bold text-2xl uppercase mt-1 ${isDark ? 'tracking-wider text-slate-100' : 'tracking-[0.08em] text-[color:var(--text-primary)]'}`}>{pageTitle}</h2>
-                <p className={`text-xs font-mono mt-1 ${isDark ? 'text-slate-400' : 'secondary-text'}`}>Welcome back, {name}</p>
+                <p className={`text-xs font-mono mt-1 hidden sm:block ${isDark ? 'text-slate-400' : 'secondary-text'}`}>Welcome back, {name}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -315,18 +362,21 @@ export default function DashboardLayout({
               </div>
             </div>
           </div>
-          <div className="px-6 pb-4 sm:hidden">
-            <ThemeToggle className="w-full justify-center" />
+          <div className="px-4 pb-4 sm:hidden flex justify-between items-center gap-4">
+             <div className="flex-1">
+               <p className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'secondary-text'}`}>Welcome back, {name}</p>
+             </div>
+             <ThemeToggle />
           </div>
         </div>
 
         {/* Page Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6 pb-20 sm:pb-6">
           {children}
         </div>
       </main>
 
-      {isResizing && (
+      {isResizing && !isMobile && (
         <div className="fixed inset-0 z-[100] cursor-ew-resize" />
       )}
     </div>

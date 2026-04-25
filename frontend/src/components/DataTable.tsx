@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
+  isLoading?: boolean;
 }
 
 export default function DataTable<T = any>({
@@ -21,6 +22,7 @@ export default function DataTable<T = any>({
   columns,
   onRowClick,
   emptyMessage = 'No data available',
+  isLoading = false,
 }: DataTableProps<T>) {
   const { theme, mounted } = useTheme();
   const isDark = !mounted || theme === 'dark';
@@ -83,9 +85,56 @@ export default function DataTable<T = any>({
     setPage(1);
   };
 
+  if (isLoading) {
+    return (
+      <div className="panel overflow-hidden">
+        <div
+          className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0 justify-between px-4 sm:px-6 py-4 border-b"
+          style={isDark
+            ? { borderColor: 'rgba(30, 41, 59, 0.9)', background: 'rgba(15, 23, 42, 0.6)' }
+            : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 72%, transparent)' }}
+        >
+          <div className="space-y-2">
+             <div className="animate-shimmer h-4 w-20 rounded bg-[var(--skeleton-bg)]"></div>
+             <div className="animate-shimmer h-3 w-32 rounded bg-[var(--skeleton-bg)]"></div>
+          </div>
+          <div className="animate-shimmer h-10 w-full sm:w-52 rounded-lg bg-[var(--skeleton-bg)]"></div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px]">
+            <thead
+              style={isDark
+                ? { background: 'rgba(15, 23, 42, 0.8)' }
+                : { background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' }}
+            >
+              <tr>
+                {columns.map((column, index) => (
+                  <th key={`skel-h-${index}`} className="px-4 sm:px-6 py-4 border-b border-[var(--border)]">
+                    <div className="animate-shimmer h-3 w-2/3 rounded bg-[var(--skeleton-bg)]"></div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, rowIdx) => (
+                <tr key={`skel-r-${rowIdx}`} style={{ borderBottom: '1px solid var(--border)', opacity: 1 - rowIdx * 0.15 }}>
+                  {columns.map((_, colIdx) => (
+                    <td key={`skel-c-${colIdx}`} className="px-4 sm:px-6 py-4">
+                      <div className="animate-shimmer h-4 w-full rounded bg-[var(--skeleton-bg)]"></div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   if (sortedData.length === 0) {
     return (
-      <div className="panel text-center py-14 px-6">
+      <div className="panel text-center py-14 px-4 sm:px-6">
         <div
           className={`mx-auto mb-4 h-12 w-12 rounded-2xl flex items-center justify-center font-mono text-lg ${isDark ? 'text-slate-500' : 'muted-text'}`}
           style={isDark
@@ -103,7 +152,7 @@ export default function DataTable<T = any>({
   return (
     <div className="panel overflow-hidden">
       <div
-        className="flex items-center justify-between px-6 py-4 border-b"
+        className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0 justify-between px-4 sm:px-6 py-4 border-b"
         style={isDark
           ? { borderColor: 'rgba(30, 41, 59, 0.9)', background: 'rgba(15, 23, 42, 0.6)' }
           : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 72%, transparent)' }}
@@ -141,7 +190,7 @@ export default function DataTable<T = any>({
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className={`px-6 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${isDark ? 'text-slate-500' : 'muted-text'}`}
+                  className={`px-4 sm:px-6 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${isDark ? 'text-slate-500' : 'muted-text'}`}
                   style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' }}
                 >
                   {column.sortable ? (
@@ -179,7 +228,7 @@ export default function DataTable<T = any>({
                 {columns.map((column, colIndex) => (
                   <td
                     key={colIndex}
-                    className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}
+                    className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}
                   >
                     {column.render
                       ? column.render(item)
@@ -193,7 +242,7 @@ export default function DataTable<T = any>({
       </div>
       {totalPages > 1 && (
         <div
-          className="flex items-center justify-between px-6 py-4 border-t"
+          className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
           style={isDark
             ? { borderColor: 'rgba(30, 41, 59, 0.9)', background: 'rgba(15, 23, 42, 0.4)' }
             : { borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 52%, transparent)' }}

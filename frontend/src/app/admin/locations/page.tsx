@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import { MapPin, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
-import { CrudPageSkeleton } from '@/components/Skeleton';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -68,8 +67,6 @@ export default function LocationsPage() {
     },
   ];
 
-  if (loading) return <CrudPageSkeleton cols={4} />;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -83,7 +80,7 @@ export default function LocationsPage() {
 
       <p className="page-subtitle">Configure approved pickup and drop locations for each city.</p>
 
-      <DataTable data={locations} columns={columns} />
+      <DataTable data={locations} columns={columns} isLoading={loading} />
 
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Location' : 'Create Location'}>
         <form onSubmit={handleSubmit} className="space-y-4">

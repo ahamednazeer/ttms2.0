@@ -126,7 +126,7 @@ export default function DatePicker({
 
       {isOpen && (
         <div
-          className="absolute z-20 mt-2 w-full rounded-xl p-4"
+          className="absolute z-20 mt-1 w-full min-w-[260px] rounded-xl p-3"
           style={isDark
             ? {
                 border: '1px solid rgba(51, 65, 85, 0.8)',
@@ -139,23 +139,23 @@ export default function DatePicker({
                 boxShadow: 'var(--shadow-lg)',
               }}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
               onClick={() => canGoToPreviousMonth && setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
               disabled={!canGoToPreviousMonth}
-              className={`flex h-9 w-9 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-lg'} transition disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`flex h-7 w-7 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition disabled:cursor-not-allowed disabled:opacity-40`}
               style={isDark
                 ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
                 : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
             >
               <CaretLeft size={16} />
             </button>
-            <div className={`text-sm font-mono uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-[color:var(--text-secondary)]'}`}>{monthLabel}</div>
+            <div className={`text-xs font-mono uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-[color:var(--text-secondary)]'}`}>{monthLabel}</div>
             <button
               type="button"
               onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
-              className={`flex h-9 w-9 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-lg'} transition`}
+              className={`flex h-7 w-7 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition`}
               style={isDark
                 ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
                 : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
@@ -164,9 +164,9 @@ export default function DatePicker({
             </button>
           </div>
 
-          <div className="mb-2 grid grid-cols-7 gap-1">
+          <div className="mb-1 grid grid-cols-7 gap-1">
             {WEEK_DAYS.map((day) => (
-              <div key={day} className={`py-2 text-center text-xs font-mono uppercase ${isDark ? 'text-slate-500' : 'muted-text'}`}>
+              <div key={day} className={`py-1 text-center text-[10px] font-mono uppercase ${isDark ? 'text-slate-500' : 'muted-text'}`}>
                 {day}
               </div>
             ))}
@@ -186,7 +186,7 @@ export default function DatePicker({
                   setIsOpen(false);
                 }}
                 className={[
-                  `h-10 ${isDark ? 'rounded-sm' : 'rounded-lg'} border text-sm font-mono transition`,
+                  `h-8 ${isDark ? 'rounded-sm' : 'rounded-md'} border text-xs font-mono transition`,
                   isSelected
                     ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.35)]'
                     : isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]',
@@ -202,7 +202,7 @@ export default function DatePicker({
             ))}
           </div>
 
-          <div className={`mt-4 flex items-center justify-between border-t pt-3 text-xs font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`} style={isDark ? { borderColor: 'rgba(30, 41, 59, 1)' } : { borderColor: 'var(--border)' }}>
+          <div className={`mt-2 flex items-center justify-between border-t pt-2 text-[10px] font-mono ${isDark ? 'text-slate-500' : 'muted-text'}`} style={isDark ? { borderColor: 'rgba(30, 41, 59, 1)' } : { borderColor: 'var(--border)' }}>
             <span>Past dates disabled</span>
             <button
               type="button"

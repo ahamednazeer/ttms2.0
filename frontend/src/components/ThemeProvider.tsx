@@ -11,7 +11,7 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const THEME_STORAGE_KEY = 'ttms_theme';
+const THEME_STORAGE_KEY = 'ttms_theme_v2';
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
@@ -21,16 +21,14 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     const resolvedTheme: Theme = storedTheme === 'light' || storedTheme === 'dark'
       ? storedTheme
-      : window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
+      : 'light';
 
     setThemeState(resolvedTheme);
     applyTheme(resolvedTheme);

@@ -12,11 +12,8 @@ export function Skeleton({
 }) {
   return (
     <div
-      className={`skeleton-pulse rounded-lg ${className}`}
-      style={{
-        background: 'var(--skeleton-bg, rgba(148,163,184,0.08))',
-        ...style,
-      }}
+      className={`animate-shimmer rounded-lg ${className}`}
+      style={style}
     />
   );
 }
