@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
@@ -12,11 +12,12 @@ import { User, UserSchema } from '../users/schemas/user.schema';
   imports: [
     MongooseModule.forFeature([{ name: Invoice.name, schema: InvoiceSchema }]),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    TicketsModule,
+    forwardRef(() => TicketsModule),
     VendorsModule,
     NotificationsModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],
+  exports: [InvoicesService],
 })
 export class InvoicesModule {}

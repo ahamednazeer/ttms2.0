@@ -210,7 +210,7 @@ export function invoiceGeneratedTemplate(vendor: Party, month: number, year: num
     lines: [
       `Billing period: ${month}/${year}`,
       `Total amount: ${formatCurrency(totalCost)}`,
-      'The invoice summary is attached when email attachments are enabled.',
+      'The invoice PDF is attached to this email.',
     ],
     ctaLabel: loginUrl ? 'Open invoices' : undefined,
     ctaUrl: loginUrl,

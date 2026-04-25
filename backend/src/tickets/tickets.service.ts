@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Ticket, TicketDocument } from './schemas/ticket.schema';
@@ -9,6 +9,7 @@ import { Location, LocationDocument } from '../locations/schemas/location.schema
 import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 interface ActorContext {
   sub: string;
@@ -29,6 +30,8 @@ export class TicketsService {
     private locationCostsService: LocationCostsService,
     private realtimeService: RealtimeService,
     private notificationsService: NotificationsService,
+    @Inject(forwardRef(() => InvoicesService))
+    private invoicesService: InvoicesService,
   ) {}
 
   private populateFields = 'userId cityId pickupLocationId dropLocationId transportId vendorId';
@@ -320,6 +323,7 @@ export class TicketsService {
     await Promise.allSettled([
       this.notificationsService.sendRideCompleted(this.toRecipient(ticket.userId), journey),
       this.notificationsService.sendVendorJourneyCompleted(await this.getVendorRecipients(ticket.vendorId), journey),
+      this.invoicesService.sendInvoiceOnJourneyCompletion(ticket),
     ]);
   }
 

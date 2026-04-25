@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TicketsController } from './tickets.controller';
 import { TicketsService } from './tickets.service';
@@ -11,6 +11,7 @@ import { AuditModule } from '../audit/audit.module';
 import { Vendor, VendorSchema } from '../vendors/schemas/vendor.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     RealtimeModule,
     AuditModule,
     NotificationsModule,
+    forwardRef(() => InvoicesModule),
   ],
   controllers: [TicketsController],
   providers: [TicketsService],
