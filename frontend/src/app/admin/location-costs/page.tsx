@@ -1,121 +1,325 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
-import { CurrencyDollar, Plus } from '@phosphor-icons/react';
+import type { City, Location, LocationCost } from '@/lib/types';
+import { CurrencyDollar, FloppyDisk } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import { useTheme } from '@/components/ThemeProvider';
 
-const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
+type RouteRow = {
+  key: string;
+  cityId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  fromName: string;
+  toName: string;
+  costId?: string;
+  cost: string;
+  distance: string;
+  hasSavedValue: boolean;
+};
 
 export default function LocationCostsPage() {
-  const [costs, setCosts] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
+  const { theme, mounted } = useTheme();
+  const isDark = !mounted || theme === 'dark';
+  const [costs, setCosts] = useState<LocationCost[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState('');
+  const [rows, setRows] = useState<RouteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editData, setEditData] = useState<any>(null);
-  const [form, setForm] = useState({ fromLocationId: '', toLocationId: '', cityId: '', cost: '', distance: '' });
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
-      const [c, l, ci] = await Promise.all([api.getLocationCosts(), api.getLocations(), api.getCities()]);
-      setCosts(c || []); setLocations(l || []); setCities(ci || []);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+      const [costData, locationData, cityData] = await Promise.all([
+        api.getLocationCosts(),
+        api.getLocations(),
+        api.getCities(),
+      ]);
+      setCosts(costData || []);
+      setLocations(locationData || []);
+      setCities(cityData || []);
+      if (!selectedCityId && cityData?.[0]?._id) {
+        setSelectedCityId(cityData[0]._id);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load route pricing');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    void fetchData();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const locationsByCity = useMemo(() => {
+    const grouped = new Map<string, Location[]>();
+    for (const location of locations) {
+      const cityId = typeof location.cityId === 'string' ? location.cityId : location.cityId?._id;
+      if (!cityId) continue;
+      const current = grouped.get(cityId) || [];
+      current.push(location);
+      grouped.set(cityId, current);
+    }
+    for (const [cityId, cityLocations] of grouped.entries()) {
+      grouped.set(
+        cityId,
+        [...cityLocations].sort((left, right) => left.locationName.localeCompare(right.locationName)),
+      );
+    }
+    return grouped;
+  }, [locations]);
+
+  useEffect(() => {
+    if (!selectedCityId) {
+      setRows([]);
+      return;
+    }
+
+    const cityLocations = locationsByCity.get(selectedCityId) || [];
+    const cityCosts = costs.filter((cost) => {
+      const costCityId = typeof cost.cityId === 'string' ? cost.cityId : cost.cityId?._id;
+      return costCityId === selectedCityId;
+    });
+
+    const nextRows: RouteRow[] = [];
+    for (const fromLocation of cityLocations) {
+      for (const toLocation of cityLocations) {
+        if (fromLocation._id === toLocation._id) continue;
+
+        const existing = cityCosts.find((cost) => {
+          const fromId = typeof cost.fromLocationId === 'string' ? cost.fromLocationId : cost.fromLocationId?._id;
+          const toId = typeof cost.toLocationId === 'string' ? cost.toLocationId : cost.toLocationId?._id;
+          return fromId === fromLocation._id && toId === toLocation._id;
+        });
+
+        nextRows.push({
+          key: `${fromLocation._id}-${toLocation._id}`,
+          cityId: selectedCityId,
+          fromLocationId: fromLocation._id,
+          toLocationId: toLocation._id,
+          fromName: fromLocation.locationName,
+          toName: toLocation.locationName,
+          costId: existing?._id,
+          cost: existing ? String(existing.cost ?? '') : '',
+          distance: existing ? String(existing.distance ?? '') : '',
+          hasSavedValue: Boolean(existing),
+        });
+      }
+    }
+
+    setRows(nextRows);
+  }, [costs, locationsByCity, selectedCityId]);
+
+  const selectedCity = cities.find((city) => city._id === selectedCityId);
+  const totalRoutes = rows.length;
+  const configuredRoutes = rows.filter((row) => row.hasSavedValue).length;
+
+  const updateRow = (key: string, field: 'cost' | 'distance', value: string) => {
+    setRows((current) =>
+      current.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const saveRow = async (row: RouteRow) => {
+    const cost = Number(row.cost);
+    const distance = Number(row.distance);
+
+    if (!row.cost || Number.isNaN(cost) || cost < 0) {
+      toast.error(`Enter a valid price for ${row.fromName} to ${row.toName}`);
+      return;
+    }
+
+    if (!row.distance || Number.isNaN(distance) || distance < 0) {
+      toast.error(`Enter a valid distance for ${row.fromName} to ${row.toName}`);
+      return;
+    }
+
+    setSavingKey(row.key);
     try {
-      const payload = { ...form, cost: Number(form.cost), distance: Number(form.distance) };
-      if (editData) { await api.updateLocationCost(editData._id, payload); toast.success('Cost updated'); }
-      else { await api.createLocationCost(payload); toast.success('Cost created'); }
-      setModalOpen(false); setEditData(null); setForm({ fromLocationId: '', toLocationId: '', cityId: '', cost: '', distance: '' });
-      fetchData();
-    } catch (err: any) { toast.error(err.message); }
+      const payload = {
+        cityId: row.cityId,
+        fromLocationId: row.fromLocationId,
+        toLocationId: row.toLocationId,
+        cost,
+        distance,
+      };
+
+      if (row.costId) {
+        await api.updateLocationCost(row.costId, payload);
+      } else {
+        await api.createLocationCost(payload);
+      }
+
+      toast.success(`Saved ${row.fromName} to ${row.toName}`);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save route pricing');
+    } finally {
+      setSavingKey(null);
+    }
   };
 
-  const handleDelete = async (row: any) => {
-    if (!confirm('Delete this cost entry?')) return;
-    try { await api.deleteLocationCost(row._id); toast.success('Deleted'); fetchData(); } catch (err: any) { toast.error(err.message); }
-  };
-
-  const columns = [
-    { key: 'fromLocation', label: 'From', render: (r: any) => <span className="font-mono text-slate-300">{r.fromLocationId?.locationName || '-'}</span> },
-    { key: 'toLocation', label: 'To', render: (r: any) => <span className="font-mono text-slate-300">{r.toLocationId?.locationName || '-'}</span> },
-    { key: 'city', label: 'City', render: (r: any) => <span className="text-blue-400 font-mono">{r.cityId?.cityName || '-'}</span> },
-    { key: 'cost', label: 'Cost', render: (r: any) => <span className="text-green-400 font-mono font-bold">${r.cost}</span> },
-    { key: 'distance', label: 'Distance (km)', render: (r: any) => <span className="font-mono">{r.distance} km</span> },
-    {
-      key: 'actions', label: 'Actions',
-      render: (r: any) => (
-        <div className="flex gap-2">
-          <button onClick={() => { setEditData(r); setForm({ fromLocationId: r.fromLocationId?._id || '', toLocationId: r.toLocationId?._id || '', cityId: r.cityId?._id || '', cost: String(r.cost), distance: String(r.distance) }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
-          <button onClick={() => handleDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
-        </div>
-      ),
-    },
-  ];
-
-  if (loading) return <CrudPageSkeleton cols={5} />;
+  if (loading) return <CrudPageSkeleton cols={6} />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
-          <CurrencyDollar size={28} weight="duotone" className="text-green-400" /> Route Pricing
-        </h1>
-        <button onClick={() => { setEditData(null); setForm({ fromLocationId: '', toLocationId: '', cityId: '', cost: '', distance: '' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> New Route
-        </button>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
+            <CurrencyDollar size={28} weight="duotone" className="text-green-400" /> Route Pricing
+          </h1>
+          <p className="page-subtitle mt-3">
+            The system auto-arranges every route pair for the selected city. Update the price and distance for any route, then save it.
+          </p>
+        </div>
+        <div className="w-full lg:w-72">
+          <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">City</label>
+          <select
+            value={selectedCityId}
+            onChange={(event) => setSelectedCityId(event.target.value)}
+            className="input-modern"
+          >
+            <option value="">Select City</option>
+            {cities.map((city) => (
+              <option key={city._id} value={city._id}>
+                {city.cityName}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <p className="page-subtitle">Define approved route distance and fare rules used for billing and invoice generation.</p>
-      <DataTable data={costs} columns={columns} />
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit Route Pricing' : 'Create Route Pricing'} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">City</label>
-            <select value={form.cityId} onChange={(e) => setForm({ ...form, cityId: e.target.value })} required className="input-modern">
-              <option value="">Select City</option>
-              {cities.map((c: any) => <option key={c._id} value={c._id}>{c.cityName}</option>)}
-            </select>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="panel p-5">
+          <p className="section-title">Selected City</p>
+          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>
+            {selectedCity?.cityName || 'Not selected'}
+          </p>
+        </div>
+        <div className="panel p-5">
+          <p className="section-title">Route Pairs</p>
+          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>{totalRoutes}</p>
+        </div>
+        <div className="panel p-5">
+          <p className="section-title">Configured</p>
+          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>
+            {configuredRoutes} / {totalRoutes}
+          </p>
+        </div>
+      </div>
+
+      {!selectedCityId ? (
+        <div className={`panel px-6 py-10 text-center ${isDark ? 'text-slate-400' : 'secondary-text'}`}>
+          Select a city to auto-generate its route pricing list.
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={`panel px-6 py-10 text-center ${isDark ? 'text-slate-400' : 'secondary-text'}`}>
+          Add at least two locations to this city and the system will arrange the routes automatically.
+        </div>
+      ) : (
+        <div className="panel overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
+              <thead
+                style={isDark
+                  ? { background: 'rgba(15, 23, 42, 0.8)' }
+                  : { background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' }}
+              >
+                <tr>
+                  {['From', 'To', 'Price ($)', 'Distance (km)', 'Status', 'Action'].map((label) => (
+                    <th
+                      key={label}
+                      className={`px-4 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${
+                        isDark ? 'text-slate-400' : 'muted-text'
+                      }`}
+                      style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => {
+                  const isSaving = savingKey === row.key;
+                  return (
+                    <tr
+                      key={row.key}
+                      className="border-t"
+                      style={isDark
+                        ? {
+                            borderColor: 'rgba(30, 41, 59, 0.8)',
+                            background: index % 2 === 0 ? 'rgba(2, 6, 23, 0.1)' : 'rgba(15, 23, 42, 0.18)',
+                          }
+                        : {
+                            borderColor: 'var(--border)',
+                            background: index % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 32%, transparent)',
+                          }}
+                    >
+                      <td className={`px-4 py-4 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}>{row.fromName}</td>
+                      <td className={`px-4 py-4 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}>{row.toName}</td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={row.cost}
+                          onChange={(event) => updateRow(row.key, 'cost', event.target.value)}
+                          className="input-modern h-10 min-w-[140px]"
+                          placeholder="0.00"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={row.distance}
+                          onChange={(event) => updateRow(row.key, 'distance', event.target.value)}
+                          className="input-modern h-10 min-w-[140px]"
+                          placeholder="0.0"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-mono uppercase tracking-wide ${
+                            row.hasSavedValue
+                              ? isDark
+                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'
+                              : isDark
+                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                                : 'bg-amber-500/10 text-amber-700 border border-amber-500/30'
+                          }`}
+                        >
+                          {row.hasSavedValue ? 'Configured' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => void saveRow(row)}
+                          disabled={isSaving}
+                          className="btn-primary inline-flex items-center gap-2"
+                        >
+                          <FloppyDisk size={16} />
+                          {isSaving ? 'Saving...' : row.hasSavedValue ? 'Update' : 'Save'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">From Location</label>
-              <select value={form.fromLocationId} onChange={(e) => setForm({ ...form, fromLocationId: e.target.value })} required className="input-modern">
-                <option value="">Select</option>
-                {locations.filter((l: any) => !form.cityId || l.cityId?._id === form.cityId || l.cityId === form.cityId).map((l: any) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">To Location</label>
-              <select value={form.toLocationId} onChange={(e) => setForm({ ...form, toLocationId: e.target.value })} required className="input-modern">
-                <option value="">Select</option>
-                {locations.filter((l: any) => (!form.cityId || l.cityId?._id === form.cityId || l.cityId === form.cityId) && l._id !== form.fromLocationId).map((l: any) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">Cost ($)</label>
-              <input type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} required className="input-modern" />
-            </div>
-            <div>
-              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">Distance (km)</label>
-              <input type="number" step="0.1" value={form.distance} onChange={(e) => setForm({ ...form, distance: e.target.value })} required className="input-modern" />
-            </div>
-          </div>
-          <div className="flex gap-3 justify-end pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">{editData ? 'Update' : 'Create'}</button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }
