@@ -36,6 +36,19 @@ export default function CitizenPage() {
 
   const getTransportValue = (value: string | Transport | undefined, key: 'vehicleNo' | 'ownerDetails' | 'contact') =>
     typeof value === 'string' ? '-' : value?.[key] || '-';
+  const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : '-';
+  const getDurationLabel = (start?: string, end?: string) => {
+    if (!start || !end) return '-';
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) return '-';
+    const totalMinutes = Math.max(1, Math.round((endTime - startTime) / 60000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours && minutes) return `${hours} hr ${minutes} min`;
+    if (hours) return `${hours} hr`;
+    return `${minutes} min`;
+  };
 
   const refreshTickets = useCallback(async () => {
     try {
@@ -116,6 +129,28 @@ export default function CitizenPage() {
                 <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Contact</p>
                 <p className="text-slate-100 font-semibold break-all">{getTransportValue(activeTicket.transportId, 'contact')}</p>
               </div>
+            </div>
+          )}
+          {activeTicket.rideStartTime && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Started</p>
+                <p className="text-slate-100 font-semibold">{formatDateTime(activeTicket.rideStartTime)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">
+                  {activeTicket.rideEndTime ? 'Duration' : 'Elapsed'}
+                </p>
+                <p className="text-slate-100 font-semibold">
+                  {getDurationLabel(activeTicket.rideStartTime, activeTicket.rideEndTime || new Date().toISOString())}
+                </p>
+              </div>
+            </div>
+          )}
+          {activeTicket.rideEndTime && (
+            <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+              <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Ended</p>
+              <p className="text-slate-100 font-semibold">{formatDateTime(activeTicket.rideEndTime)}</p>
             </div>
           )}
           {activeTicket.status === 'RIDE_STARTED' && activeTicket.otp && (

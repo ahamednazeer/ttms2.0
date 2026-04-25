@@ -13,16 +13,33 @@ export default function TransportHistoryPage() {
   const [loading, setLoading] = useState(true);
   useEffect(() => { api.getTickets().then(t => setTickets((t||[]).filter((x:any) => x.status === 'COMPLETED'))).catch(console.error).finally(()=>setLoading(false)); }, []);
 
+  const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : '-';
+  const getDurationLabel = (start?: string, end?: string) => {
+    if (!start || !end) return '-';
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) return '-';
+    const totalMinutes = Math.max(1, Math.round((endTime - startTime) / 60000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours && minutes) return `${hours} hr ${minutes} min`;
+    if (hours) return `${hours} hr`;
+    return `${minutes} min`;
+  };
+
   const columns = [
     { key: 'user', label: 'User', render: (r: any) => r.userId?.firstName || '-' },
     { key: 'pickup', label: 'From', render: (r: any) => r.pickupLocationId?.locationName || '-' },
     { key: 'drop', label: 'To', render: (r: any) => r.dropLocationId?.locationName || '-' },
     { key: 'date', label: 'Date', render: (r: any) => r.pickupDate ? new Date(r.pickupDate).toLocaleDateString() : '-' },
+    { key: 'started', label: 'Started', render: (r: any) => formatDateTime(r.rideStartTime) },
+    { key: 'ended', label: 'Ended', render: (r: any) => formatDateTime(r.rideEndTime) },
+    { key: 'duration', label: 'Duration', render: (r: any) => getDurationLabel(r.rideStartTime, r.rideEndTime) },
     { key: 'cost', label: 'Cost', render: (r: any) => <span className="text-green-400 font-mono">${r.cost || 0}</span> },
     { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
   ];
 
-  if (loading) return <CrudPageSkeleton cols={6} />;
+  if (loading) return <CrudPageSkeleton cols={9} />;
 
   return (
     <div className="space-y-6">

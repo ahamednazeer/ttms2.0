@@ -1,5 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState, LoadingState } from '@/components/FeedbackState';
@@ -13,6 +14,7 @@ export default function TransportDashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [otp, setOtp] = useState('');
+  const [lastCompletedTicket, setLastCompletedTicket] = useState<Ticket | null>(null);
   const [startingRide, setStartingRide] = useState(false);
   const [completingRide, setCompletingRide] = useState(false);
 
@@ -38,6 +40,19 @@ export default function TransportDashboard() {
   const getLocationName = (value?: string | Location) => typeof value === 'string' ? '-' : value?.locationName || '-';
   const getUserName = (value?: string | User) => typeof value === 'string' ? '-' : value?.firstName || '-';
   const getCityName = (value?: string | City) => typeof value === 'string' ? '-' : value?.cityName || '-';
+  const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : '-';
+  const getDurationLabel = (start?: string, end?: string) => {
+    if (!start || !end) return '-';
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) return '-';
+    const totalMinutes = Math.max(1, Math.round((endTime - startTime) / 60000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours && minutes) return `${hours} hr ${minutes} min`;
+    if (hours) return `${hours} hr`;
+    return `${minutes} min`;
+  };
 
   const handleStartRide = async (id: string) => {
     try {
@@ -54,9 +69,10 @@ export default function TransportDashboard() {
     if (!otp || otp.length !== 6) { toast.error('Enter 6-digit OTP'); return; }
     try {
       setCompletingRide(true);
-      await api.completeRide(id, otp);
+      const completedTicket = await api.completeRide(id, otp);
       toast.success('Ride completed!');
       setOtp('');
+      setLastCompletedTicket(completedTicket || null);
       await refreshTickets();
     }
     catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to complete ride'); }
@@ -66,6 +82,67 @@ export default function TransportDashboard() {
   if (loading) return <SingleCardSkeleton />;
 
   if (!activeTicket) {
+    if (lastCompletedTicket) {
+      return (
+        <div className="max-w-lg mx-auto space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
+              <CheckCircle size={28} weight="duotone" className="text-emerald-400" /> Journey Completed
+            </h1>
+            <p className="page-subtitle">The ride was completed successfully and moved to transport history.</p>
+          </div>
+
+          <div className="card space-y-5">
+            <div className="info-strip">
+              Fare confirmation and invoice notifications have been triggered for this completed trip.
+            </div>
+            <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs uppercase">User</span><span className="text-slate-200">{getUserName(lastCompletedTicket.userId)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs uppercase">City</span><span className="text-slate-200">{getCityName(lastCompletedTicket.cityId)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs uppercase">Fare</span><span className="text-emerald-400 font-semibold">${lastCompletedTicket.cost || 0}</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Started</p>
+                <p className="text-slate-100 font-semibold">{formatDateTime(lastCompletedTicket.rideStartTime)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Ended</p>
+                <p className="text-slate-100 font-semibold">{formatDateTime(lastCompletedTicket.rideEndTime)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Duration</p>
+                <p className="text-slate-100 font-semibold">{getDurationLabel(lastCompletedTicket.rideStartTime, lastCompletedTicket.rideEndTime)}</p>
+              </div>
+            </div>
+
+            <div className="border border-slate-700/80 rounded-xl p-4 space-y-3 bg-slate-950/30">
+              <div className="flex items-center gap-3">
+                <MapPin size={20} className="text-green-400" weight="duotone" />
+                <div><p className="text-xs text-slate-500 font-mono">PICKUP</p><p className="text-slate-200">{getLocationName(lastCompletedTicket.pickupLocationId)}</p></div>
+              </div>
+              <div className="border-l-2 border-dashed border-slate-700 ml-2.5 h-4" />
+              <div className="flex items-center gap-3">
+                <MapPin size={20} className="text-red-400" weight="duotone" />
+                <div><p className="text-xs text-slate-500 font-mono">DROP</p><p className="text-slate-200">{getLocationName(lastCompletedTicket.dropLocationId)}</p></div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/transport/history" className="btn-primary flex-1 text-center py-3">
+                Open Completed Journeys
+              </Link>
+              <button
+                type="button"
+                onClick={() => setLastCompletedTicket(null)}
+                className="btn-secondary flex-1 py-3"
+              >
+                Back to Active Screen
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <EmptyState
         title="No Active Journey"
@@ -96,6 +173,18 @@ export default function TransportDashboard() {
         </div>
         <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs uppercase">User</span><span className="text-slate-200">{getUserName(activeTicket.userId)}</span></div>
         <div className="flex justify-between"><span className="text-slate-500 font-mono text-xs uppercase">City</span><span className="text-slate-200">{getCityName(activeTicket.cityId)}</span></div>
+        {activeTicket.rideStartTime && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+              <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Started</p>
+              <p className="text-slate-100 font-semibold">{formatDateTime(activeTicket.rideStartTime)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-1">
+              <p className="text-slate-500 font-mono text-xs uppercase tracking-wider">Elapsed</p>
+              <p className="text-slate-100 font-semibold">{getDurationLabel(activeTicket.rideStartTime, new Date().toISOString())}</p>
+            </div>
+          </div>
+        )}
 
         <div className="border border-slate-700/80 rounded-xl p-4 space-y-3 bg-slate-950/30">
           <div className="flex items-center gap-3">

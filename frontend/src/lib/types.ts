@@ -46,6 +46,8 @@ export interface Ticket {
   _id: string;
   status: string;
   pickupDate?: string;
+  rideStartTime?: string;
+  rideEndTime?: string;
   otp?: string;
   cost?: number;
   userId?: User | string;
