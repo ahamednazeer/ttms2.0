@@ -114,7 +114,7 @@ export default function DatePicker({
           }
           setIsOpen((current) => !current);
         }}
-        className="input-modern flex items-center justify-between gap-3 text-left"
+        className="input-modern flex min-h-12 items-center justify-between gap-3 py-3 text-left"
       >
         <span className={value ? (isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]') : (isDark ? 'text-slate-500' : 'muted-text')}>
           {value ? formatLabel(value) : placeholder}
@@ -126,7 +126,7 @@ export default function DatePicker({
 
       {isOpen && (
         <div
-          className="absolute z-20 mt-1 w-full min-w-[260px] rounded-xl p-3"
+          className="absolute left-0 z-20 mt-1.5 w-full min-w-[280px] max-w-[360px] rounded-xl p-3 sm:left-auto sm:right-0"
           style={isDark
             ? {
                 border: '1px solid rgba(51, 65, 85, 0.8)',
@@ -144,7 +144,7 @@ export default function DatePicker({
               type="button"
               onClick={() => canGoToPreviousMonth && setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
               disabled={!canGoToPreviousMonth}
-              className={`flex h-7 w-7 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`flex h-8 w-8 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition disabled:cursor-not-allowed disabled:opacity-40`}
               style={isDark
                 ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
                 : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
@@ -155,7 +155,7 @@ export default function DatePicker({
             <button
               type="button"
               onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
-              className={`flex h-7 w-7 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition`}
+              className={`flex h-8 w-8 items-center justify-center ${isDark ? 'rounded-sm' : 'rounded-md'} transition`}
               style={isDark
                 ? { border: '1px solid rgba(71, 85, 105, 1)', background: '#020617', color: '#cbd5e1' }
                 : { border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--surface-3) 62%, transparent)', color: 'var(--text-secondary)' }}
@@ -186,7 +186,7 @@ export default function DatePicker({
                   setIsOpen(false);
                 }}
                 className={[
-                  `h-8 ${isDark ? 'rounded-sm' : 'rounded-md'} border text-xs font-mono transition`,
+                  `h-9 ${isDark ? 'rounded-sm' : 'rounded-md'} border text-xs font-mono transition`,
                   isSelected
                     ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.35)]'
                     : isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]',
