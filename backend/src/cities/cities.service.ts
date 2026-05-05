@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { City, CityDocument } from './schemas/city.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { Location, LocationDocument } from '../locations/schemas/location.schema';
+import { refIdFilter } from '../common/utils/mongo-id.util';
 
 @Injectable()
 export class CitiesService {
@@ -27,7 +28,7 @@ export class CitiesService {
   async findOne(id: string) {
     const city = await this.cityModel.findById(id).lean().exec();
     if (!city) throw new NotFoundException('City not found');
-    const locations = await this.locationModel.find({ cityId: id }).select('locationName cityId').lean().exec();
+    const locations = await this.locationModel.find(refIdFilter('cityId', id)).select('locationName cityId').lean().exec();
     return { ...city, locations };
   }
 
@@ -42,7 +43,7 @@ export class CitiesService {
 
   async update(id: string, data: any) {
     try {
-      const city = await this.cityModel.findByIdAndUpdate(id, data, { new: true });
+      const city = await this.cityModel.findByIdAndUpdate(id, data, { returnDocument: 'after' });
       if (!city) throw new NotFoundException('City not found');
       return city;
     } catch (error) {

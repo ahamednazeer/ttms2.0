@@ -77,7 +77,7 @@ export class UsersService {
         data.vendorId = null;
       }
 
-      const d = await this.model.findByIdAndUpdate(id, data, { new: true }).select('-password').populate('cityId vendorId transportId');
+      const d = await this.model.findByIdAndUpdate(id, data, { returnDocument: 'after' }).select('-password').populate('cityId vendorId transportId');
       if (!d) throw new NotFoundException();
       const changeSummary = this.buildChangeSummary(previous, d.toObject(), !!rawPassword);
       this.dispatchNotification(() =>

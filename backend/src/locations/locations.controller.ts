@@ -32,10 +32,12 @@ export class LocationsController {
   @Get()
   @Roles('SUPERADMIN', 'VENDOR', 'TRANSPORT', 'USER')
   async findAll(@Request() req: AuthenticatedRequest, @Query('cityId') queryCityId?: string) {
-    // For citizen (USER) role: restrict to their assigned city
     if (req.user.role === 'USER') {
+      if (req.user.cityId) {
+        return this.svc.findAll(req.user.cityId);
+      }
+
       const user = await this.userModel.findById(req.user.sub).select('cityId vendorId').populate('vendorId').lean() as any;
-      // cityId from user directly, or derive from their vendor's city
       const cityId = user?.cityId
         ? String(user.cityId)
         : user?.vendorId?.cityId

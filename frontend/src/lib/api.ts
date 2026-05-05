@@ -130,8 +130,9 @@ class ApiClient {
   }
 
   // ============ Locations ============
-  async getLocations(): Promise<Location[]> {
-    return this.request('/location');
+  async getLocations(cityId?: string): Promise<Location[]> {
+    const query = cityId ? `?cityId=${encodeURIComponent(cityId)}` : '';
+    return this.request(`/location${query}`);
   }
 
   async createLocation(data: { locationName: string; cityId: string }): Promise<Location> {

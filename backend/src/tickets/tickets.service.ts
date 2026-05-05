@@ -163,11 +163,13 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Ticket not found');
     if (ticket.status !== 'ASSIGNED') throw new BadRequestException('Ticket not in ASSIGNED state');
     this.assertTransportOwnership(ticket, actor);
+    const cost = await this.getRouteCostOrThrow(ticket);
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     ticket.otp = otp;
     ticket.status = 'RIDE_STARTED';
     ticket.rideStartTime = new Date();
+    ticket.cost = cost;
 
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
@@ -186,16 +188,7 @@ export class TicketsService {
     if (ticket.otp !== otp) throw new BadRequestException('Invalid OTP');
     this.assertTransportOwnership(ticket, actor);
 
-    let cost = 0;
-    try {
-      const costEntry = await this.locationCostsService.findCost(
-        ticket.pickupLocationId.toString(),
-        ticket.dropLocationId.toString(),
-      );
-      if (costEntry) cost = costEntry.cost;
-    } catch {
-      console.warn('Cost lookup failed, defaulting to 0');
-    }
+    const cost = await this.getRouteCostOrThrow(ticket);
 
     ticket.status = 'COMPLETED';
     ticket.rideEndTime = new Date();
@@ -272,6 +265,18 @@ export class TicketsService {
     if (!actor.transportId || this.normalizeId(ticket.transportId) !== actor.transportId) {
       throw new ForbiddenException('Cannot update tickets outside your transport scope');
     }
+  }
+
+  private async getRouteCostOrThrow(ticket: any) {
+    const costEntry = await this.locationCostsService.findCost(
+      this.normalizeId(ticket.pickupLocationId),
+      this.normalizeId(ticket.dropLocationId),
+    );
+    const cost = Number(costEntry?.cost || 0);
+    if (!costEntry || Number.isNaN(cost) || cost <= 0) {
+      throw new BadRequestException('Route price is not configured. Set a price greater than 0 before starting the ride.');
+    }
+    return cost;
   }
 
   private normalizeId(value: any) {

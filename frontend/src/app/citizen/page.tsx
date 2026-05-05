@@ -7,7 +7,7 @@ import { CompletedJourneyCard, TripProgressTracker } from '@/components/Complete
 import { useTheme } from '@/components/ThemeProvider';
 import { useTicketRealtime } from '@/hooks/useTicketRealtime';
 import type { CreateTicketInput, Location, Ticket, Transport } from '@/lib/types';
-import { Path, MapPin, CarSimple, Key } from '@phosphor-icons/react';
+import { CaretDown, Path, MapPin, CarSimple, Key } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { SingleCardSkeleton } from '@/components/Skeleton';
 
@@ -32,6 +32,7 @@ export default function CitizenPage() {
   const [lastCompletedTicket, setLastCompletedTicket] = useState<TicketRecord | null>(null);
   const [dismissedCompletedTicketId, setDismissedCompletedTicketId] = useState<string | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
+  const [openLocationMenu, setOpenLocationMenu] = useState<'pickup' | 'drop' | null>(null);
   const [form, setForm] = useState<CreateTicketInput>({ pickupLocationId: '', dropLocationId: '', pickupDate: '' });
   const minPickupDate = getTodayDateValue();
   const { theme, mounted } = useTheme();
@@ -45,6 +46,57 @@ export default function CitizenPage() {
 
   const getLocationName = (value?: string | Location) =>
     typeof value === 'string' ? '-' : value?.locationName || '-';
+
+  const sortedLocations = [...locations].sort((left, right) => left.locationName.localeCompare(right.locationName));
+  const dropLocations = sortedLocations.filter((location) => location._id !== form.pickupLocationId);
+  const selectedPickup = sortedLocations.find((location) => location._id === form.pickupLocationId);
+  const selectedDrop = sortedLocations.find((location) => location._id === form.dropLocationId);
+
+  const LocationMenu = ({
+    type,
+    value,
+    placeholder,
+    options,
+    onSelect,
+  }: {
+    type: 'pickup' | 'drop';
+    value: string;
+    placeholder: string;
+    options: LocationOption[];
+    onSelect: (locationId: string) => void;
+  }) => (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpenLocationMenu((current) => current === type ? null : type)}
+        className="input-modern flex min-h-12 w-full items-center justify-between gap-3 text-left"
+      >
+        <span>{value || placeholder}</span>
+        <CaretDown size={18} className="text-slate-400" />
+      </button>
+      {openLocationMenu === type && (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-64 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 shadow-xl">
+          {options.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-slate-500">No locations available</div>
+          ) : (
+            options.map((location) => (
+              <button
+                key={location._id}
+                type="button"
+                onClick={() => {
+                  onSelect(location._id);
+                  setOpenLocationMenu(null);
+                }}
+                className="block w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-blue-950/60"
+              >
+                {location.locationName}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const getTransportValue = (value: string | Transport | undefined, key: 'vehicleNo' | 'ownerDetails' | 'contact') =>
     typeof value === 'string' ? '-' : value?.[key] || '-';
@@ -88,9 +140,17 @@ export default function CitizenPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([api.getTickets(), api.getLocations()])
-      .then(([t, l]) => { setTickets(t || []); setLocations(l || []); })
-      .catch(console.error).finally(() => setLoading(false));
+    Promise.all([api.getTickets(), api.getMe()])
+      .then(async ([t, me]) => {
+        const cityId = typeof me?.cityId === 'string' ? me.cityId : me?.cityId?._id;
+        const l = await api.getLocations(cityId);
+        setTickets(t || []);
+        setLocations(l || []);
+      })
+      .catch((error) => {
+        console.error(error);
+        toast.error('Failed to load pickup locations');
+      }).finally(() => setLoading(false));
   }, []);
 
   useTicketRealtime(refreshTickets);
@@ -317,17 +377,30 @@ export default function CitizenPage() {
           )}
           <div>
             <label className={`block text-xs uppercase mb-2 font-mono ${labelTone}`}>Pickup Location</label>
-            <select value={form.pickupLocationId} onChange={e => setForm({ ...form, pickupLocationId: e.target.value })} required className="input-modern">
-              <option value="">Select pickup</option>
-              {locations.map((l) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
-            </select>
+            <LocationMenu
+              type="pickup"
+              value={selectedPickup?.locationName || ''}
+              placeholder="Select pickup"
+              options={sortedLocations}
+              onSelect={(pickupLocationId) => setForm((current) => ({
+                ...current,
+                pickupLocationId,
+                dropLocationId: current.dropLocationId === pickupLocationId ? '' : current.dropLocationId,
+              }))}
+            />
+            {locations.length === 0 && (
+              <p className={`mt-2 text-xs ${secondaryTone}`}>No pickup locations are assigned to your city yet.</p>
+            )}
           </div>
           <div>
             <label className={`block text-xs uppercase mb-2 font-mono ${labelTone}`}>Drop Location</label>
-            <select value={form.dropLocationId} onChange={e => setForm({ ...form, dropLocationId: e.target.value })} required className="input-modern">
-              <option value="">Select drop</option>
-              {locations.filter((l) => l._id !== form.pickupLocationId).map((l) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
-            </select>
+            <LocationMenu
+              type="drop"
+              value={selectedDrop?.locationName || ''}
+              placeholder="Select drop"
+              options={dropLocations}
+              onSelect={(dropLocationId) => setForm({ ...form, dropLocationId })}
+            />
           </div>
           <div>
             <label className={`block text-xs uppercase mb-2 font-mono ${labelTone}`}>Date</label>

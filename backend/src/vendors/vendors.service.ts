@@ -41,7 +41,7 @@ export class VendorsService {
   async update(id: string, data: any) {
     try {
       const { userId, ...vendorData } = data;
-      const d = await this.model.findByIdAndUpdate(id, vendorData, { new: true });
+      const d = await this.model.findByIdAndUpdate(id, vendorData, { returnDocument: 'after' });
       if (!d) throw new NotFoundException();
       if (Object.prototype.hasOwnProperty.call(data, 'userId')) {
         await this.syncVendorUser(id, userId);

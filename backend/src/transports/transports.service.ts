@@ -41,7 +41,7 @@ export class TransportsService {
   async update(id: string, data: any) {
     try {
       const { userId, ...transportData } = data;
-      const d = await this.model.findByIdAndUpdate(id, transportData, { new: true });
+      const d = await this.model.findByIdAndUpdate(id, transportData, { returnDocument: 'after' });
       if (!d) throw new NotFoundException();
       if (Object.prototype.hasOwnProperty.call(data, 'userId')) {
         await this.syncTransportUser(id, userId);

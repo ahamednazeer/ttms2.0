@@ -6,6 +6,7 @@ import { City, CityDocument } from '../cities/schemas/city.schema';
 import { Location, LocationDocument } from '../locations/schemas/location.schema';
 import { LocationCost, LocationCostDocument } from './schemas/location-cost.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
+import { refIdFilter } from '../common/utils/mongo-id.util';
 
 type ImportHeader = 'pickup' | 'dropoff' | 'amount' | 'city';
 
@@ -61,7 +62,7 @@ export class LocationCostsService {
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
   ) {}
   async findAll() { return this.model.find().populate('fromLocationId toLocationId cityId').exec(); }
-  async findByCity(cityId: string) { return this.model.find({ cityId }).populate('fromLocationId toLocationId cityId').exec(); }
+  async findByCity(cityId: string) { return this.model.find(refIdFilter('cityId', cityId)).populate('fromLocationId toLocationId cityId').exec(); }
   async create(data: any) {
     if (data.fromLocationId === data.toLocationId) {
       throw new BadRequestException('From and to locations must be different');
@@ -82,7 +83,7 @@ export class LocationCostsService {
       throw new BadRequestException('From and to locations must be different');
     }
     try {
-      const d = await this.model.findByIdAndUpdate(id, data, { new: true });
+      const d = await this.model.findByIdAndUpdate(id, data, { returnDocument: 'after' });
       if (!d) throw new NotFoundException();
       return d;
     } catch (error) {
@@ -91,7 +92,7 @@ export class LocationCostsService {
     }
   }
   async delete(id: string) { const d = await this.model.findByIdAndDelete(id); if (!d) throw new NotFoundException(); return { deleted: true }; }
-  async findCost(fromId: string, toId: string) { return this.model.findOne({ fromLocationId: fromId, toLocationId: toId }); }
+  async findCost(fromId: string, toId: string) { return this.model.findOne({ $and: [refIdFilter('fromLocationId', fromId), refIdFilter('toLocationId', toId)] }); }
 
   async importExcel(file: { buffer?: Buffer; originalname?: string } | undefined): Promise<LocationCostImportResult> {
     if (!file?.buffer) {
@@ -370,7 +371,7 @@ export class LocationCostsService {
   }
 
   private async findLocationByName(locationName: string, cityId: Types.ObjectId) {
-    const locations = await this.locationModel.find({ cityId }).select('locationName').exec();
+    const locations = await this.locationModel.find(refIdFilter('cityId', cityId)).select('locationName').exec();
     return locations.find((location) => this.normalizeName(location.locationName) === this.normalizeName(locationName)) || null;
   }
 
