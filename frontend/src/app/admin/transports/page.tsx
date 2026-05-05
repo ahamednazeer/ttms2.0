@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { Truck, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -38,6 +39,8 @@ export default function TransportsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [form, setForm] = useState<TransportFormState>(emptyForm);
+  const [transportToDelete, setTransportToDelete] = useState<any>(null);
+  const [deletingTransport, setDeletingTransport] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -134,14 +137,18 @@ export default function TransportsPage() {
     }
   };
 
-  const handleDelete = async (row: any) => {
-    if (!confirm('Delete this transport record?')) return;
+  const handleDelete = async () => {
+    if (!transportToDelete) return;
+    setDeletingTransport(true);
     try {
-      await api.deleteTransport(row._id);
+      await api.deleteTransport(transportToDelete._id);
       toast.success('Transport deleted');
+      setTransportToDelete(null);
       fetchData();
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeletingTransport(false);
     }
   };
 
@@ -164,7 +171,7 @@ export default function TransportsPage() {
       render: (row: any) => (
         <div className="flex gap-2">
           <button onClick={() => openEditModal(row)} className="btn-secondary text-xs px-3 py-1">Edit</button>
-          <button onClick={() => handleDelete(row)} className="btn-danger text-xs px-3 py-1">Delete</button>
+          <button onClick={() => setTransportToDelete(row)} className="btn-danger text-xs px-3 py-1">Delete</button>
         </div>
       ),
     },
@@ -296,6 +303,15 @@ export default function TransportsPage() {
           </div>
         </form>
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(transportToDelete)}
+        title="Delete Transport"
+        message={`Delete transport ${transportToDelete?.vehicleNo || 'record'}?`}
+        confirmLabel="Delete"
+        loading={deletingTransport}
+        onCancel={() => setTransportToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

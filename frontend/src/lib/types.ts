@@ -119,10 +119,30 @@ export interface CreateLocationCostInput {
 
 export interface LocationCostImportResult {
   importedRows: number;
+  validRows: number;
   citiesCreated: number;
   locationsCreated: number;
   routesCreated: number;
   routesUpdated: number;
+  routesUnchanged: number;
+}
+
+export interface LocationCostImportError {
+  rowNumber: number;
+  message: string;
+}
+
+export interface LocationCostImportPreview extends LocationCostImportResult {
+  canImport: boolean;
+  errors: LocationCostImportError[];
+  previewRows: Array<{
+    rowNumber: number;
+    pickup: string;
+    dropoff: string;
+    city: string;
+    amount: number;
+    action: 'create' | 'update' | 'unchanged';
+  }>;
 }
 
 export interface Invoice {

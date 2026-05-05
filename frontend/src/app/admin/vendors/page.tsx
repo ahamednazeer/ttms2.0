@@ -6,6 +6,7 @@ import type { City, CreateVendorInput, User, Vendor } from '@/lib/types';
 import { Storefront, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -18,6 +19,8 @@ export default function VendorsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState<Vendor | null>(null);
   const [form, setForm] = useState<CreateVendorInput>({ vendorName: '', contact: '', email: '', cityId: '', userId: '' });
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+  const [deletingVendor, setDeletingVendor] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -54,9 +57,19 @@ export default function VendorsPage() {
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to save vendor'); }
   };
 
-  const handleDelete = async (r: Vendor) => {
-    if (!confirm('Delete this vendor record?')) return;
-    try { await api.deleteVendor(r._id); toast.success('Vendor removed successfully'); fetchData(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete vendor'); }
+  const handleDelete = async () => {
+    if (!vendorToDelete) return;
+    setDeletingVendor(true);
+    try {
+      await api.deleteVendor(vendorToDelete._id);
+      toast.success('Vendor removed successfully');
+      setVendorToDelete(null);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete vendor');
+    } finally {
+      setDeletingVendor(false);
+    }
   };
 
   const columns = [
@@ -68,7 +81,7 @@ export default function VendorsPage() {
     { key: 'actions', label: 'Actions', render: (r: Vendor) => (
       <div className="flex gap-2">
         <button onClick={() => { setEditData(r); setForm({ vendorName: r.vendorName, contact: r.contact||'', email: r.email||'', cityId: typeof r.cityId === 'string' ? r.cityId : r.cityId?._id || '', userId: getLinkedUserId(r._id) }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
-        <button onClick={() => handleDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
+        <button onClick={() => setVendorToDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
       </div>
     )},
   ];
@@ -107,6 +120,15 @@ export default function VendorsPage() {
           <div className="flex gap-3 justify-end"><button type="button" onClick={()=>setModalOpen(false)} className="btn-secondary">Cancel</button><button type="submit" className="btn-primary">{editData?'Update':'Create'}</button></div>
         </form>
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(vendorToDelete)}
+        title="Delete Vendor"
+        message={`Delete vendor ${vendorToDelete?.vendorName || 'record'}?`}
+        confirmLabel="Delete"
+        loading={deletingVendor}
+        onCancel={() => setVendorToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

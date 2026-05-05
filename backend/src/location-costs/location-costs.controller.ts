@@ -21,6 +21,9 @@ export class LocationCostsController {
   @AuditAction('LOCATION_COST_CREATE')
   @UseInterceptors(AuditInterceptor)
   create(@Body() data: CreateLocationCostDto) { return this.svc.create(data); }
+  @Post('import/preview')
+  @UseInterceptors(FileInterceptor('file'))
+  previewImport(@UploadedFile() file: any) { return this.svc.previewImport(file); }
   @Post('import')
   @AuditAction('LOCATION_COST_IMPORT')
   @UseInterceptors(FileInterceptor('file'), AuditInterceptor)

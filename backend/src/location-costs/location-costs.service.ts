@@ -17,6 +17,42 @@ interface ParsedImportRow {
   amount: number;
 }
 
+export interface ImportRowError {
+  rowNumber: number;
+  message: string;
+}
+
+interface ParsedImportSheet {
+  rows: ParsedImportRow[];
+  errors: ImportRowError[];
+}
+
+export interface ImportPlanRow extends ParsedImportRow {
+  action: 'create' | 'update' | 'unchanged';
+}
+
+export interface LocationCostImportResult {
+  importedRows: number;
+  validRows: number;
+  citiesCreated: number;
+  locationsCreated: number;
+  routesCreated: number;
+  routesUpdated: number;
+  routesUnchanged: number;
+}
+
+export interface LocationCostImportPreview extends LocationCostImportResult {
+  errors: ImportRowError[];
+  canImport: boolean;
+  previewRows: ImportPlanRow[];
+}
+
+interface ImportPlan {
+  rows: ImportPlanRow[];
+  errors: ImportRowError[];
+    summary: LocationCostImportResult;
+}
+
 @Injectable()
 export class LocationCostsService {
   constructor(
@@ -57,13 +93,20 @@ export class LocationCostsService {
   async delete(id: string) { const d = await this.model.findByIdAndDelete(id); if (!d) throw new NotFoundException(); return { deleted: true }; }
   async findCost(fromId: string, toId: string) { return this.model.findOne({ fromLocationId: fromId, toLocationId: toId }); }
 
-  async importExcel(file: { buffer?: Buffer; originalname?: string } | undefined) {
+  async importExcel(file: { buffer?: Buffer; originalname?: string } | undefined): Promise<LocationCostImportResult> {
     if (!file?.buffer) {
       throw new BadRequestException('Upload an Excel file');
     }
 
-    const rows = this.parseImportRows(file.buffer);
-    if (!rows.length) {
+    const plan = await this.buildImportPlan(file.buffer);
+    if (plan.errors.length) {
+      throw new BadRequestException({
+        message: 'Fix the Excel row errors before importing',
+        errors: plan.errors,
+        summary: plan.summary,
+      });
+    }
+    if (!plan.rows.length) {
       throw new BadRequestException('No route pricing rows found. Required columns: Location pick Up, Drop Off Location, Amount, City');
     }
 
@@ -71,10 +114,12 @@ export class LocationCostsService {
     let locationsCreated = 0;
     let routesCreated = 0;
     let routesUpdated = 0;
+    let routesUnchanged = 0;
 
-    for (const row of rows) {
-      if (this.normalizeName(row.pickup) === this.normalizeName(row.dropoff)) {
-        throw new BadRequestException(`Row ${row.rowNumber}: pickup and drop-off locations must be different`);
+    for (const row of plan.rows) {
+      if (row.action === 'unchanged') {
+        routesUnchanged++;
+        continue;
       }
 
       const city = await this.findOrCreateCity(row.city);
@@ -109,17 +154,126 @@ export class LocationCostsService {
     }
 
     return {
-      importedRows: rows.length,
+      importedRows: plan.rows.length,
+      validRows: plan.rows.length,
       citiesCreated,
       locationsCreated,
       routesCreated,
       routesUpdated,
+      routesUnchanged,
     };
   }
 
-  private parseImportRows(buffer: Buffer): ParsedImportRow[] {
+  async previewImport(file: { buffer?: Buffer; originalname?: string } | undefined): Promise<LocationCostImportPreview> {
+    if (!file?.buffer) {
+      throw new BadRequestException('Upload an Excel file');
+    }
+
+    const plan = await this.buildImportPlan(file.buffer);
+    return {
+      ...plan.summary,
+      errors: plan.errors,
+      canImport: plan.errors.length === 0 && plan.rows.length > 0,
+      previewRows: plan.rows.slice(0, 20),
+    };
+  }
+
+  private async buildImportPlan(buffer: Buffer): Promise<ImportPlan> {
+    const parsed = this.parseImportRows(buffer);
+    const errors = [...parsed.errors];
+    const rows: ImportPlanRow[] = [];
+    const seenRoutes = new Map<string, number>();
+    const plannedCities = new Set<string>();
+    const plannedLocations = new Set<string>();
+
+    const [cities, locations, costs] = await Promise.all([
+      this.cityModel.find().select('cityName').lean().exec(),
+      this.locationModel.find().select('locationName cityId').lean().exec(),
+      this.model.find().select('cityId fromLocationId toLocationId cost').lean().exec(),
+    ]);
+
+    const cityByName = new Map(cities.map((city) => [this.normalizeName(city.cityName), city]));
+    const existingLocations = new Set(
+      locations.map((location) => `${String(location.cityId)}:${this.normalizeName(location.locationName)}`),
+    );
+    const locationIdByName = new Map(
+      locations.map((location) => [`${String(location.cityId)}:${this.normalizeName(location.locationName)}`, String(location._id)]),
+    );
+    const existingRouteCosts = new Map(
+      costs.map((cost) => [
+        `${String(cost.cityId)}:${String(cost.fromLocationId)}:${String(cost.toLocationId)}`,
+        Number(cost.cost),
+      ]),
+    );
+
+    for (const row of parsed.rows) {
+      const normalizedCity = this.normalizeName(row.city);
+      const normalizedPickup = this.normalizeName(row.pickup);
+      const normalizedDropoff = this.normalizeName(row.dropoff);
+      const routeKey = `${normalizedCity}:${normalizedPickup}:${normalizedDropoff}`;
+
+      if (normalizedPickup === normalizedDropoff) {
+        errors.push({ rowNumber: row.rowNumber, message: 'Pickup and drop-off locations must be different' });
+        continue;
+      }
+
+      const firstSeenRow = seenRoutes.get(routeKey);
+      if (firstSeenRow) {
+        errors.push({ rowNumber: row.rowNumber, message: `Duplicate route also appears on row ${firstSeenRow}` });
+        continue;
+      }
+      seenRoutes.set(routeKey, row.rowNumber);
+
+      const existingCity = cityByName.get(normalizedCity);
+      const cityKey = existingCity ? String(existingCity._id) : `new:${normalizedCity}`;
+      if (!existingCity) plannedCities.add(normalizedCity);
+
+      const pickupLocationKey = `${cityKey}:${normalizedPickup}`;
+      const dropoffLocationKey = `${cityKey}:${normalizedDropoff}`;
+      const pickupExists = existingLocations.has(pickupLocationKey) || plannedLocations.has(pickupLocationKey);
+      const dropoffExists = existingLocations.has(dropoffLocationKey) || plannedLocations.has(dropoffLocationKey);
+
+      if (!pickupExists) plannedLocations.add(pickupLocationKey);
+      if (!dropoffExists) plannedLocations.add(dropoffLocationKey);
+
+      let action: ImportPlanRow['action'] = 'create';
+      if (existingCity && pickupExists && dropoffExists) {
+        const pickupId = locationIdByName.get(pickupLocationKey);
+        const dropoffId = locationIdByName.get(dropoffLocationKey);
+        if (pickupId && dropoffId) {
+          const existingCost = existingRouteCosts.get(`${String(existingCity._id)}:${pickupId}:${dropoffId}`);
+          if (existingCost !== undefined) {
+            action = existingCost === row.amount ? 'unchanged' : 'update';
+          }
+        }
+      }
+
+      rows.push({ ...row, action });
+    }
+
+    const routesCreated = rows.filter((row) => row.action === 'create').length;
+    const routesUpdated = rows.filter((row) => row.action === 'update').length;
+    const routesUnchanged = rows.filter((row) => row.action === 'unchanged').length;
+
+    return {
+      rows,
+      errors,
+      summary: {
+        importedRows: parsed.rows.length,
+        validRows: rows.length,
+        citiesCreated: plannedCities.size,
+        locationsCreated: plannedLocations.size,
+        routesCreated,
+        routesUpdated,
+        routesUnchanged,
+      },
+    };
+  }
+
+  private parseImportRows(buffer: Buffer): ParsedImportSheet {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const rows: ParsedImportRow[] = [];
+    const errors: ImportRowError[] = [];
 
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
@@ -145,14 +299,19 @@ export class LocationCostsService {
 
         if (!pickup && !dropoff && !city && !amountText) return;
         if (!pickup || !dropoff || !city || !amountText || Number.isNaN(amount) || amount < 0) {
-          throw new BadRequestException(`Row ${rowNumber}: pickup, drop-off, amount, and city are required`);
+          errors.push({ rowNumber, message: 'Pickup, drop-off, amount, and city are required' });
+          return;
         }
 
         rows.push({ rowNumber, pickup, dropoff, city, amount });
       });
     }
 
-    return rows;
+    if (!rows.length && !errors.length) {
+      errors.push({ rowNumber: 0, message: 'No route pricing rows found. Required columns: Location pick Up, Drop Off Location, Amount, City' });
+    }
+
+    return { rows, errors };
   }
 
   private detectHeader(row: string[]): Partial<Record<ImportHeader, number>> | null {

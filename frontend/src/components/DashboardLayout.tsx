@@ -10,7 +10,6 @@ import {
   SignOut,
   Gauge,
   Users,
-  MapPin,
   Buildings,
   CurrencyDollar,
   Ticket,
@@ -50,7 +49,6 @@ const menuItemsByRole: Record<string, MenuItem[]> = {
   SUPERADMIN: [
     { icon: Gauge, label: 'Dashboard', path: '/admin' },
     { icon: Buildings, label: 'Cities', path: '/admin/cities' },
-    { icon: MapPin, label: 'Locations', path: '/admin/locations' },
     { icon: CurrencyDollar, label: 'Location Costs', path: '/admin/location-costs' },
     { icon: Storefront, label: 'Vendors', path: '/admin/vendors' },
     { icon: Users, label: 'Users', path: '/admin/users' },

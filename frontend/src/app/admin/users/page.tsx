@@ -7,6 +7,7 @@ import type { City, CreateUserInput, User, Vendor } from '@/lib/types';
 import { Users, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -18,6 +19,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
   const [form, setForm] = useState<CreateUserInput>({
     username: '', password: '', firstName: '', lastName: '', email: '', phone: '', role: 'USER', cityId: '', vendorId: '',
   });
@@ -42,10 +45,19 @@ export default function UsersPage() {
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to save user'); }
   };
 
-  const handleDelete = async (r: User) => {
-    if (!confirm('Delete this user account?')) return;
-    try { await api.deleteUser(r._id); toast.success('User removed successfully'); fetchData(); }
-    catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete user'); }
+  const handleDelete = async () => {
+    if (!userToDelete) return;
+    setDeletingUser(true);
+    try {
+      await api.deleteUser(userToDelete._id);
+      toast.success('User removed successfully');
+      setUserToDelete(null);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
   };
 
   const openCreate = () => {
@@ -87,7 +99,7 @@ export default function UsersPage() {
       key: 'actions', label: 'Actions', render: (r: User) => (
         <div className="flex gap-2">
           <button onClick={() => openEdit(r)} className="btn-secondary text-xs px-3 py-1">Edit</button>
-          <button onClick={() => handleDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
+          <button onClick={() => setUserToDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
         </div>
       )
     },
@@ -180,6 +192,15 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        title="Delete User"
+        message={`Delete user ${userToDelete?.username || 'account'}?`}
+        confirmLabel="Delete"
+        loading={deletingUser}
+        onCancel={() => setUserToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

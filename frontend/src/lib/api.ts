@@ -8,6 +8,7 @@ import type {
   CreateVendorInput,
   Location,
   LocationCost,
+  LocationCostImportPreview,
   LocationCostImportResult,
   Ticket,
   Transport,
@@ -178,7 +179,15 @@ class ApiClient {
     return this.request(`/locationcost/${id}`, { method: 'DELETE' });
   }
 
+  async previewLocationCostsImport(file: File): Promise<LocationCostImportPreview> {
+    return this.uploadLocationCostsFile('/locationcost/import/preview', file);
+  }
+
   async importLocationCosts(file: File): Promise<LocationCostImportResult> {
+    return this.uploadLocationCostsFile('/locationcost/import', file);
+  }
+
+  private async uploadLocationCostsFile(endpoint: string, file: File) {
     const token = this.getToken();
     const formData = new FormData();
     formData.append('file', file);
@@ -186,7 +195,7 @@ class ApiClient {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_URL}/locationcost/import`, {
+    const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData,
@@ -195,7 +204,11 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Import failed' }));
-      throw new Error(error.message || error.detail || 'Import failed');
+      const message = typeof error.message === 'string' ? error.message : error.detail || 'Import failed';
+      const requestError = new Error(message) as Error & { errors?: unknown[]; summary?: unknown };
+      requestError.errors = error.errors;
+      requestError.summary = error.summary;
+      throw requestError;
     }
 
     return response.json();

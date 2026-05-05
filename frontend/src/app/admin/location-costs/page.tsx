@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
-import type { City, Location, LocationCost } from '@/lib/types';
-import { CurrencyDollar, FloppyDisk, Plus, Trash, UploadSimple } from '@phosphor-icons/react';
+import type { City, Location, LocationCost, LocationCostImportPreview } from '@/lib/types';
+import { CheckCircle, CurrencyDollar, FloppyDisk, Plus, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import { useTheme } from '@/components/ThemeProvider';
+import Modal from '@/components/Modal';
 
 type SavedRoute = LocationCost & { fromName: string; toName: string };
 
@@ -20,7 +21,11 @@ export default function LocationCostsPage() {
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<LocationCostImportPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState<SavedRoute | null>(null);
+  const [deletingRoute, setDeletingRoute] = useState(false);
 
   // Add-route form
   const [addForm, setAddForm] = useState({ fromLocationId: '', toLocationId: '', cost: '' });
@@ -138,30 +143,60 @@ export default function LocationCostsPage() {
     } finally { setSavingKey(null); }
   };
 
-  const handleDeleteRoute = async (route: SavedRoute) => {
-    if (!confirm(`Delete route ${route.fromName} → ${route.toName}?`)) return;
+  const handleDeleteRoute = (route: SavedRoute) => {
+    setRouteToDelete(route);
+  };
+
+  const confirmDeleteRoute = async () => {
+    if (!routeToDelete) return;
+
+    setDeletingRoute(true);
     try {
-      await api.deleteLocationCost(route._id);
+      await api.deleteLocationCost(routeToDelete._id);
       toast.success('Route deleted');
+      setRouteToDelete(null);
       await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete route');
+    } finally {
+      setDeletingRoute(false);
     }
   };
 
-  const handleImport = async (e: React.FormEvent) => {
+  const handlePreviewImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) {
       toast.error('Choose an Excel file'); return;
     }
 
+    setPreviewing(true);
+    try {
+      const result = await api.previewLocationCostsImport(importFile);
+      setImportPreview(result);
+      if (result.errors.length) {
+        toast.error(`Found ${result.errors.length} row issue${result.errors.length === 1 ? '' : 's'}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to preview route pricing');
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importFile || !importPreview?.canImport) return;
+
     setImporting(true);
     try {
       const result = await api.importLocationCosts(importFile);
-      toast.success(`Imported ${result.importedRows} rows: ${result.routesCreated} added, ${result.routesUpdated} updated`);
+      toast.success(`Imported ${result.importedRows} rows: ${result.routesCreated} added, ${result.routesUpdated} updated, ${result.routesUnchanged} unchanged`);
       setImportFile(null);
+      setImportPreview(null);
       await fetchData();
     } catch (error: any) {
+      if (error.errors?.length) {
+        setImportPreview((current) => current ? { ...current, errors: error.errors, canImport: false } : current);
+      }
       toast.error(error.message || 'Failed to import route pricing');
     } finally {
       setImporting(false);
@@ -213,21 +248,24 @@ export default function LocationCostsPage() {
 
       <div className="panel p-6">
         <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-4">Import Routes</h3>
-        <form onSubmit={handleImport} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <form onSubmit={handlePreviewImport} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0 flex-1">
             <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Excel file</label>
             <input
               type="file"
               accept=".xlsx,.xls"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setImportFile(e.target.files?.[0] || null);
+                setImportPreview(null);
+              }}
               className="input-modern w-full"
             />
             <p className={`mt-2 text-xs ${isDark ? 'text-slate-500' : 'secondary-text'}`}>
               Required columns: Location pick Up, Drop Off Location, Amount, City.
             </p>
           </div>
-          <button type="submit" disabled={importing || !importFile} className="btn-primary inline-flex items-center gap-2">
-            <UploadSimple size={16} /> {importing ? 'Importing...' : 'Import Excel'}
+          <button type="submit" disabled={previewing || !importFile} className="btn-primary inline-flex items-center gap-2">
+            <UploadSimple size={16} /> {previewing ? 'Checking...' : 'Preview Excel'}
           </button>
         </form>
       </div>
@@ -336,6 +374,107 @@ export default function LocationCostsPage() {
           )}
         </>
       )}
+
+      <Modal isOpen={Boolean(importPreview)} onClose={() => setImportPreview(null)} title="Import Preview" size="xl">
+        {importPreview && (
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ['Rows', importPreview.importedRows],
+                ['Valid', importPreview.validRows],
+                ['Cities New', importPreview.citiesCreated],
+                ['Locations New', importPreview.locationsCreated],
+                ['Routes New', importPreview.routesCreated],
+                ['No Change', importPreview.routesUnchanged],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border border-slate-700 bg-slate-900/60 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">{label}</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-100">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className={`rounded-md border p-3 ${importPreview.errors.length ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/40 bg-emerald-500/10'}`}>
+              <div className="flex items-center gap-2 text-sm font-medium">
+                {importPreview.errors.length ? <WarningCircle size={18} className="text-amber-300" /> : <CheckCircle size={18} className="text-emerald-300" />}
+                <span className={importPreview.errors.length ? 'text-amber-200' : 'text-emerald-200'}>
+                  {importPreview.errors.length ? 'Fix these rows before importing' : 'Ready to import'}
+                </span>
+              </div>
+              {importPreview.errors.length > 0 && (
+                <div className="mt-3 max-h-44 overflow-y-auto space-y-2">
+                  {importPreview.errors.map((error, index) => (
+                    <div key={`${error.rowNumber}-${index}`} className="text-sm text-amber-100">
+                      Row {error.rowNumber || '-'}: {error.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {importPreview.previewRows.length > 0 && (
+              <div className="overflow-x-auto rounded-md border border-slate-700">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="bg-slate-900">
+                    <tr>
+                      {['Row', 'City', 'Pickup', 'Drop-off', 'Amount', 'Action'].map((label) => (
+                        <th key={label} className="px-3 py-3 text-left text-xs uppercase tracking-wider text-slate-400 font-mono">{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.previewRows.map((row) => (
+                      <tr key={row.rowNumber} className="border-t border-slate-800">
+                        <td className="px-3 py-2 text-slate-300">{row.rowNumber}</td>
+                        <td className="px-3 py-2 text-slate-200">{row.city}</td>
+                        <td className="px-3 py-2 text-slate-200">{row.pickup}</td>
+                        <td className="px-3 py-2 text-slate-200">{row.dropoff}</td>
+                        <td className="px-3 py-2 text-slate-200">{row.amount}</td>
+                        <td className="px-3 py-2">
+                          <span className={`rounded px-2 py-0.5 text-xs font-mono uppercase ${
+                            row.action === 'update'
+                              ? 'bg-blue-500/15 text-blue-300'
+                              : row.action === 'unchanged'
+                                ? 'bg-slate-700/60 text-slate-300'
+                                : 'bg-emerald-500/15 text-emerald-300'
+                          }`}>
+                            {row.action === 'unchanged' ? 'no change' : row.action}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setImportPreview(null)} className="btn-secondary">Cancel</button>
+              <button type="button" onClick={() => void handleConfirmImport()} disabled={!importPreview.canImport || importing} className="btn-primary">
+                {importing ? 'Importing...' : 'Confirm Import'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal isOpen={Boolean(routeToDelete)} onClose={() => setRouteToDelete(null)} title="Delete Route" size="sm">
+        {routeToDelete && (
+          <div className="space-y-5">
+            <p className={`text-sm ${isDark ? 'text-slate-300' : 'secondary-text'}`}>
+              Delete route <span className="font-semibold">{routeToDelete.fromName}</span> to <span className="font-semibold">{routeToDelete.toName}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setRouteToDelete(null)} className="btn-secondary" disabled={deletingRoute}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => void confirmDeleteRoute()} className="btn-danger" disabled={deletingRoute}>
+                {deletingRoute ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

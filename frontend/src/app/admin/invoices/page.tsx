@@ -6,6 +6,7 @@ import type { Invoice } from '@/lib/types';
 import { Invoice as InvoiceIcon, DownloadSimple, CheckCircle, XCircle, Trash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -29,6 +30,8 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [genForm, setGenForm] = useState({ vendorId: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; invoiceId: string }>({ open: false, invoiceId: '' });
+  const [invoiceToApprove, setInvoiceToApprove] = useState<Invoice | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -51,12 +54,13 @@ export default function InvoicesPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  const handleApprove = async (inv: Invoice) => {
-    if (!confirm(`Approve invoice for ${inv.month}/${inv.year}? This will send the PDF to the vendor.`)) return;
-    setActionLoading(inv._id + '_approve');
+  const handleApprove = async () => {
+    if (!invoiceToApprove) return;
+    setActionLoading(invoiceToApprove._id + '_approve');
     try {
-      await api.approveInvoice(inv._id);
+      await api.approveInvoice(invoiceToApprove._id);
       toast.success('Invoice approved and email sent to vendor');
+      setInvoiceToApprove(null);
       fetchData();
     } catch (err: any) { toast.error(err.message); }
     finally { setActionLoading(null); }
@@ -88,13 +92,16 @@ export default function InvoicesPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  const handleDelete = async (inv: Invoice) => {
-    if (!confirm('Permanently delete this invoice?')) return;
+  const handleDelete = async () => {
+    if (!invoiceToDelete) return;
+    setActionLoading(invoiceToDelete._id + '_delete');
     try {
-      await api.deleteInvoice(inv._id);
+      await api.deleteInvoice(invoiceToDelete._id);
       toast.success('Invoice deleted');
+      setInvoiceToDelete(null);
       fetchData();
     } catch (err: any) { toast.error(err.message); }
+    finally { setActionLoading(null); }
   };
 
   const columns = [
@@ -115,7 +122,7 @@ export default function InvoicesPage() {
           {r.status === 'DRAFT' && (
             <>
               <button
-                onClick={() => handleApprove(r)}
+                onClick={() => setInvoiceToApprove(r)}
                 disabled={actionLoading === r._id + '_approve'}
                 className="btn-success text-xs px-3 py-1 flex items-center gap-1"
               >
@@ -133,7 +140,7 @@ export default function InvoicesPage() {
           <button onClick={() => handleDownload(r)} className="btn-secondary text-xs px-3 py-1 flex items-center gap-1">
             <DownloadSimple size={14} /> PDF
           </button>
-          <button onClick={() => handleDelete(r)} className="btn-danger text-xs px-3 py-1 flex items-center gap-1">
+          <button onClick={() => setInvoiceToDelete(r)} className="btn-danger text-xs px-3 py-1 flex items-center gap-1">
             <Trash size={14} />
           </button>
         </div>
@@ -203,6 +210,25 @@ export default function InvoicesPage() {
           </div>
         </div>
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(invoiceToApprove)}
+        title="Approve Invoice"
+        message={`Approve invoice for ${invoiceToApprove?.month}/${invoiceToApprove?.year}? This will send the PDF to the vendor.`}
+        confirmLabel="Approve"
+        variant="success"
+        loading={Boolean(invoiceToApprove && actionLoading === invoiceToApprove._id + '_approve')}
+        onCancel={() => setInvoiceToApprove(null)}
+        onConfirm={() => void handleApprove()}
+      />
+      <ConfirmModal
+        isOpen={Boolean(invoiceToDelete)}
+        title="Delete Invoice"
+        message="Permanently delete this invoice?"
+        confirmLabel="Delete"
+        loading={Boolean(invoiceToDelete && actionLoading === invoiceToDelete._id + '_delete')}
+        onCancel={() => setInvoiceToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }
