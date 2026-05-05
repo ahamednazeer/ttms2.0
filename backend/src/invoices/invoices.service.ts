@@ -44,6 +44,7 @@ export class InvoicesService {
   ) {}
 
   async findAll() {
+    await this.syncInvoicesFromCompletedTickets();
     return this.populateInvoiceQuery(this.model.find()).sort({ generatedAt: -1 }).exec();
   }
 
@@ -325,6 +326,53 @@ export class InvoicesService {
     }).save();
   }
 
+  private async syncInvoicesFromCompletedTickets() {
+    const tickets = await this.ticketsService.findCompletedForInvoiceSync();
+    const groups = new Map<string, { vendorId: string; month: number; year: number; tickets: any[] }>();
+
+    for (const ticket of tickets) {
+      const vendorId = normalizeRefId(ticket.vendorId);
+      const rideEndTime = ticket.rideEndTime ? new Date(ticket.rideEndTime) : null;
+      if (!vendorId || !rideEndTime || Number.isNaN(rideEndTime.getTime())) continue;
+
+      const month = rideEndTime.getMonth() + 1;
+      const year = rideEndTime.getFullYear();
+      const key = `${vendorId}:${month}:${year}`;
+      const group = groups.get(key) || { vendorId, month, year, tickets: [] };
+      group.tickets.push(ticket);
+      groups.set(key, group);
+    }
+
+    for (const group of groups.values()) {
+      const totalCost = group.tickets.reduce((sum, ticket) => sum + Number(ticket.cost || 0), 0);
+      const ticketIds = group.tickets.map((ticket) => ticket._id);
+      const existing = await this.model.findOne({
+        vendorId: group.vendorId,
+        month: group.month,
+        year: group.year,
+      });
+
+      if (!existing) {
+        await new this.model({
+          vendorId: group.vendorId,
+          month: group.month,
+          year: group.year,
+          tickets: ticketIds,
+          totalCost,
+          generatedAt: new Date(),
+          status: 'DRAFT',
+        }).save();
+        continue;
+      }
+
+      if (existing.status !== 'DRAFT') continue;
+
+      existing.tickets = ticketIds as any;
+      existing.totalCost = totalCost;
+      await existing.save();
+    }
+  }
+
   private buildInvoiceLineItems(tickets: any[]): InvoiceLineItem[] {
     return tickets.map((ticket, index) => {
       const fallbackStart = ticket.pickupDate || ticket.createdAt || ticket.rideStartTime;
@@ -449,7 +497,9 @@ export class InvoicesService {
   }
 
   private getInvoiceCity(invoice: any, vendor: any) {
-    return this.formatDisplayText(invoice.tickets?.[0]?.cityId?.cityName || vendor?.cityId?.cityName);
+    const ticketCity = invoice.tickets?.find((ticket: any) => ticket?.cityId?.cityName)?.cityId?.cityName;
+    const vendorCity = vendor?.cityId?.cityName;
+    return this.formatDisplayText(ticketCity || vendorCity);
   }
 
   private formatDate(value?: Date | string) {
@@ -490,7 +540,10 @@ export class InvoicesService {
 
   private populateInvoiceQuery<T>(query: T) {
     return (query as any)
-      .populate('vendorId')
+      .populate({
+        path: 'vendorId',
+        populate: { path: 'cityId' },
+      })
       .populate({
         path: 'tickets',
         populate: [

@@ -228,6 +228,14 @@ export class TicketsService {
     }).populate(this.populateFields).exec();
   }
 
+  async findCompletedForInvoiceSync() {
+    return this.model.find({
+      status: 'COMPLETED',
+      vendorId: { $exists: true, $ne: null },
+      rideEndTime: { $exists: true, $ne: null },
+    }).populate(this.populateFields).exec();
+  }
+
   private emitTicketUpdate(ticket: any, action: 'created' | 'assigned' | 'started' | 'completed' | 'updated') {
     this.realtimeService.emitTicketUpdate({
       ticketId: String(ticket._id),

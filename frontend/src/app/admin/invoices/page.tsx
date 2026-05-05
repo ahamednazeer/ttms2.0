@@ -26,9 +26,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [genForm, setGenForm] = useState({ vendorId: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; invoiceId: string }>({ open: false, invoiceId: '' });
   const [invoiceToApprove, setInvoiceToApprove] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
@@ -37,22 +35,12 @@ export default function InvoicesPage() {
 
   const fetchData = async () => {
     try {
-      const [inv, v] = await Promise.all([api.getInvoices(), api.getVendors()]);
+      const inv = await api.getInvoices();
       setInvoices((inv as Invoice[]) || []);
-      setVendors(v || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  const handleGenerate = async () => {
-    if (!genForm.vendorId) { toast.error('Select a vendor'); return; }
-    try {
-      await api.generateInvoice(genForm.vendorId, genForm.month, genForm.year);
-      toast.success('Invoice generated — awaiting admin approval');
-      fetchData();
-    } catch (err: any) { toast.error(err.message); }
-  };
 
   const handleApprove = async () => {
     if (!invoiceToApprove) return;
@@ -155,33 +143,7 @@ export default function InvoicesPage() {
       <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
         <InvoiceIcon size={28} weight="duotone" className="text-orange-400" /> Invoices
       </h1>
-      <p className="page-subtitle">Generate vendor billing statements and approve or reject them before the email is dispatched.</p>
-
-      {/* Generate Invoice */}
-      <div className="bg-slate-800/40 border border-slate-700/60 rounded-sm p-6">
-        <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-2">Generate Invoice</h3>
-        <p className="text-slate-400 text-sm mb-4">Create a billing run for a selected vendor and reporting month. The invoice will be saved as <strong className="text-amber-400">DRAFT</strong> and must be approved before the email is sent.</p>
-        <div className="flex flex-wrap gap-4 items-end">
-          <div>
-            <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Vendor</label>
-            <select value={genForm.vendorId} onChange={e => setGenForm({ ...genForm, vendorId: e.target.value })} className="input-modern w-48">
-              <option value="">Select</option>
-              {vendors.map((v: any) => <option key={v._id} value={v._id}>{v.vendorName}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Month</label>
-            <select value={genForm.month} onChange={e => setGenForm({ ...genForm, month: Number(e.target.value) })} className="input-modern w-32">
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Year</label>
-            <input type="number" value={genForm.year} onChange={e => setGenForm({ ...genForm, year: Number(e.target.value) })} className="input-modern w-28" />
-          </div>
-          <button onClick={handleGenerate} className="btn-success">Generate</button>
-        </div>
-      </div>
+      <p className="page-subtitle">Invoices are created automatically from completed rides. Review draft invoices, then approve or reject before email is dispatched.</p>
 
       <DataTable data={invoices} columns={columns} />
 
