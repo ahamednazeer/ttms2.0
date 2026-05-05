@@ -80,6 +80,7 @@ export interface CreateUserInput {
   phone?: string;
   role: User['role'];
   cityId?: string;
+  vendorId?: string;
 }
 
 export interface UpdateUserInput extends Partial<CreateUserInput> {}
@@ -106,7 +107,6 @@ export interface LocationCost {
   toLocationId?: Location | string;
   cityId?: City | string;
   cost: number;
-  distance: number;
 }
 
 export interface CreateLocationCostInput {
@@ -114,5 +114,25 @@ export interface CreateLocationCostInput {
   toLocationId: string;
   cityId: string;
   cost: number;
-  distance: number;
+  distance?: number;
+}
+
+export interface LocationCostImportResult {
+  importedRows: number;
+  citiesCreated: number;
+  locationsCreated: number;
+  routesCreated: number;
+  routesUpdated: number;
+}
+
+export interface Invoice {
+  _id: string;
+  vendorId?: Vendor | string;
+  month: number;
+  year: number;
+  tickets?: any[];
+  totalCost: number;
+  generatedAt?: string;
+  status: 'DRAFT' | 'APPROVED' | 'REJECTED';
+  adminRemarks?: string;
 }

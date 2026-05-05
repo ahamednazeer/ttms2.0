@@ -6,7 +6,9 @@ import {
   accountProvisionedTemplate,
   accountUpdatedTemplate,
   driverAssignedTemplate,
+  invoiceApprovedTemplate,
   invoiceGeneratedTemplate,
+  invoiceRejectedTemplate,
   passwordResetTemplate,
   rideAssignedTemplate,
   rideCompletedTemplate,
@@ -144,6 +146,37 @@ export class NotificationsService {
           to: this.formatRecipient(recipient),
           subject: `TTMS invoice generated for ${month}/${year}`,
           attachments: attachment ? [attachment] : undefined,
+          ...template,
+        });
+      }),
+    );
+    return true;
+  }
+
+  async sendInvoiceApproved(recipients: Recipient[], month: number, year: number, totalCost: number, attachment?: { filename: string; content: Buffer }) {
+    const uniqueRecipients = this.uniqueRecipients(recipients);
+    await Promise.allSettled(
+      uniqueRecipients.map((recipient) => {
+        const template = invoiceApprovedTemplate(recipient, month, year, totalCost, `${this.getPortalUrl()}/vendor/invoices`);
+        return this.send({
+          to: this.formatRecipient(recipient),
+          subject: `TTMS invoice approved for ${month}/${year}`,
+          attachments: attachment ? [attachment] : undefined,
+          ...template,
+        });
+      }),
+    );
+    return true;
+  }
+
+  async sendInvoiceRejected(recipients: Recipient[], month: number, year: number, remarks: string) {
+    const uniqueRecipients = this.uniqueRecipients(recipients);
+    await Promise.allSettled(
+      uniqueRecipients.map((recipient) => {
+        const template = invoiceRejectedTemplate(recipient, month, year, remarks, `${this.getPortalUrl()}/vendor/invoices`);
+        return this.send({
+          to: this.formatRecipient(recipient),
+          subject: `TTMS invoice for ${month}/${year} requires attention`,
           ...template,
         });
       }),

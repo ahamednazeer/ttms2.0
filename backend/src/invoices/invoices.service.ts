@@ -1,4 +1,4 @@
-import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Invoice, InvoiceDocument } from './schemas/invoice.schema';
@@ -37,7 +37,6 @@ export class InvoicesService {
   constructor(
     @InjectModel(Invoice.name) private model: Model<InvoiceDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @Inject(forwardRef(() => TicketsService))
     private ticketsService: TicketsService,
     private vendorsService: VendorsService,
     private notificationsService: NotificationsService,
@@ -52,44 +51,67 @@ export class InvoicesService {
     const existing = await this.model.findOne({ vendorId, month, year });
     if (existing) throw new BadRequestException('Invoice already exists for this period');
     const savedInvoice = await this.syncInvoiceForPeriod(vendorId, month, year);
-    const vendor = await this.vendorsService.findOne(vendorId);
-    const attachment = vendor ? {
-      filename: `ttms-invoice-${month}-${year}.pdf`,
-      content: await this.generateInvoicePdfBuffer(savedInvoice, vendor),
-    } : undefined;
-    const recipients = await this.getVendorRecipients(vendorId, vendor);
-    this.dispatchNotification(() =>
-      this.notificationsService.sendInvoiceGenerated(recipients, month, year, Number(savedInvoice.totalCost || 0), attachment),
-    );
-
+    // NOTE: Email is NOT sent here. Admin must approve first.
     return savedInvoice;
   }
 
-  async sendInvoiceOnJourneyCompletion(ticket: any) {
-    const vendorId = this.normalizeRefId(ticket?.vendorId || ticket?.transportId?.vendorId);
-    if (!vendorId) return;
+  async approve(invoiceId: string) {
+    const invoice = await this.model.findById(invoiceId);
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'APPROVED') throw new BadRequestException('Invoice is already approved');
 
-    const completedAt = ticket?.rideEndTime || ticket?.pickupDate || new Date();
-    const invoiceDate = new Date(completedAt);
-    if (Number.isNaN(invoiceDate.getTime())) return;
+    invoice.status = 'APPROVED';
+    invoice.adminRemarks = '';
+    const saved = await invoice.save();
 
-    const month = invoiceDate.getMonth() + 1;
-    const year = invoiceDate.getFullYear();
-    const invoice = await this.syncInvoiceForPeriod(vendorId, month, year);
-    const vendor = await this.vendorsService.findOne(vendorId);
-    const recipients = await this.getVendorRecipients(vendorId, vendor);
-    const attachment = {
-      filename: `ttms-invoice-${month}-${year}.pdf`,
-      content: await this.generateInvoicePdfBuffer(invoice, vendor),
-    };
+    const vendor = await this.vendorsService.findOne(this.normalizeRefId(invoice.vendorId));
+    const recipients = await this.getVendorRecipients(String(invoice.vendorId), vendor);
+    const attachment = vendor ? {
+      filename: `ttms-invoice-${invoice.month}-${invoice.year}.pdf`,
+      content: await this.generateInvoicePdfBuffer(saved, vendor),
+    } : undefined;
 
-    await this.notificationsService.sendInvoiceGenerated(
-      recipients,
-      month,
-      year,
-      Number(invoice.totalCost || 0),
-      attachment,
+    this.dispatchNotification(() =>
+      this.notificationsService.sendInvoiceApproved(
+        recipients,
+        invoice.month,
+        invoice.year,
+        Number(invoice.totalCost || 0),
+        attachment,
+      ),
     );
+
+    return saved;
+  }
+
+  async reject(invoiceId: string, remarks: string) {
+    const invoice = await this.model.findById(invoiceId);
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'APPROVED') throw new BadRequestException('Cannot reject an already approved invoice');
+
+    invoice.status = 'REJECTED';
+    invoice.adminRemarks = remarks || '';
+    const saved = await invoice.save();
+
+    const vendor = await this.vendorsService.findOne(this.normalizeRefId(invoice.vendorId));
+    const recipients = await this.getVendorRecipients(String(invoice.vendorId), vendor);
+
+    this.dispatchNotification(() =>
+      this.notificationsService.sendInvoiceRejected(
+        recipients,
+        invoice.month,
+        invoice.year,
+        remarks,
+      ),
+    );
+
+    return saved;
+  }
+
+  async delete(invoiceId: string) {
+    const invoice = await this.model.findByIdAndDelete(invoiceId);
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    return { deleted: true };
   }
 
   async downloadPdf(invoiceId: string, res: Response) {
@@ -298,6 +320,7 @@ export class InvoicesService {
       tickets: tickets.map((ticket) => ticket._id),
       totalCost,
       generatedAt: new Date(),
+      status: 'DRAFT',
     }).save();
   }
 

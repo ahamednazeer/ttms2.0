@@ -7,7 +7,10 @@ import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 @Injectable()
 export class LocationsService {
   constructor(@InjectModel(Location.name) private model: Model<LocationDocument>) {}
-  async findAll() { return this.model.find().populate('cityId').exec(); }
+  async findAll(cityId?: string) {
+    const filter = cityId ? { cityId } : {};
+    return this.model.find(filter).populate('cityId').exec();
+  }
   async findOne(id: string) { const d = await this.model.findById(id).populate('cityId'); if (!d) throw new NotFoundException(); return d; }
   async create(data: any) {
     try {

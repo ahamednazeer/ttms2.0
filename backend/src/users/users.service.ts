@@ -67,8 +67,14 @@ export class UsersService {
       if (data.role && data.role !== 'TRANSPORT') {
         delete data.transportId;
       }
-      if (data.role && data.role !== 'VENDOR') {
+      // Only auto-clear vendorId if role is not VENDOR and not USER
+      // USER role can have a vendorId to route their ride requests to a specific vendor
+      if (data.role && data.role !== 'VENDOR' && data.role !== 'USER') {
         delete data.vendorId;
+      }
+      // If USER role and no vendorId in payload, explicitly unset it (allow clearing)
+      if (data.role === 'USER' && data.vendorId === '') {
+        data.vendorId = null;
       }
 
       const d = await this.model.findByIdAndUpdate(id, data, { new: true }).select('-password').populate('cityId vendorId transportId');

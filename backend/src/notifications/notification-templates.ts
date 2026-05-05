@@ -217,6 +217,34 @@ export function invoiceGeneratedTemplate(vendor: Party, month: number, year: num
   });
 }
 
+export function invoiceApprovedTemplate(vendor: Party, month: number, year: number, totalCost: number, loginUrl?: string): EmailTemplate {
+  return renderLayout({
+    title: 'Your TTMS invoice has been approved',
+    intro: `Hello ${formatPartyName(vendor)}, your invoice for the period ${month}/${year} has been approved by the administrator.`,
+    lines: [
+      `Billing period: ${month}/${year}`,
+      `Total amount: ${formatCurrency(totalCost)}`,
+      'Please find the approved invoice PDF attached to this email.',
+    ],
+    ctaLabel: loginUrl ? 'View invoices' : undefined,
+    ctaUrl: loginUrl,
+  });
+}
+
+export function invoiceRejectedTemplate(vendor: Party, month: number, year: number, remarks: string, loginUrl?: string): EmailTemplate {
+  return renderLayout({
+    title: 'Your TTMS invoice requires attention',
+    intro: `Hello ${formatPartyName(vendor)}, your invoice for the period ${month}/${year} has been reviewed and requires attention.`,
+    lines: [
+      `Billing period: ${month}/${year}`,
+      `Admin remarks: ${remarks || 'No remarks provided.'}`,
+      'Please contact your administrator for further clarification.',
+    ],
+    ctaLabel: loginUrl ? 'View invoices' : undefined,
+    ctaUrl: loginUrl,
+  });
+}
+
 export function passwordResetTemplate(user: Party, resetUrl: string): EmailTemplate {
   return renderLayout({
     title: 'Reset your TTMS password',

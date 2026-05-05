@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Response } from 'express';
@@ -18,6 +18,21 @@ export class InvoicesController {
   @Post('generate')
   generate(@Body() body: { vendorId: string; month: number; year: number }) {
     return this.svc.generate(body.vendorId, body.month, body.year);
+  }
+
+  @Post(':id/approve')
+  approve(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.svc.approve(id);
+  }
+
+  @Post(':id/reject')
+  reject(@Param('id', ParseObjectIdPipe) id: string, @Body() body: { remarks: string }) {
+    return this.svc.reject(id, body.remarks || '');
+  }
+
+  @Delete(':id')
+  delete(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.svc.delete(id);
   }
 
   @Get(':id/download')

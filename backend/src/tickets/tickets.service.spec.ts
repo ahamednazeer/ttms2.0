@@ -23,6 +23,16 @@ describe('TicketsService security', () => {
       findById: jest.fn(),
     };
 
+    const vendorModel = {
+      findById: jest.fn(),
+      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+    };
+
+    const userModel = {
+      findById: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) }),
+      find: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }),
+    };
+
     const locationCostsService = {
       findCost: jest.fn(),
     };
@@ -31,12 +41,25 @@ describe('TicketsService security', () => {
       emitTicketUpdate: jest.fn(),
     };
 
+    const notificationsService = {
+      sendRideRequested: jest.fn().mockResolvedValue(true),
+      sendVendorQueueAlerts: jest.fn().mockResolvedValue(true),
+      sendRideAssigned: jest.fn().mockResolvedValue(true),
+      sendDriverAssigned: jest.fn().mockResolvedValue(true),
+      sendRideStarted: jest.fn().mockResolvedValue(true),
+      sendRideCompleted: jest.fn().mockResolvedValue(true),
+      sendVendorJourneyCompleted: jest.fn().mockResolvedValue(true),
+    };
+
     const service = new TicketsService(
       ticketModel as any,
       transportModel as any,
       locationModel as any,
+      vendorModel as any,
+      userModel as any,
       locationCostsService as any,
       realtimeService as any,
+      notificationsService as any,
     );
 
     return {
@@ -44,8 +67,11 @@ describe('TicketsService security', () => {
       ticketModel,
       transportModel,
       locationModel,
+      vendorModel,
+      userModel,
       locationCostsService,
       realtimeService,
+      notificationsService,
       queryChain,
     };
   };

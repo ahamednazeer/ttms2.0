@@ -41,4 +41,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsMongoId()
   cityId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  vendorId?: string;
 }

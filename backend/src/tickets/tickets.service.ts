@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Ticket, TicketDocument } from './schemas/ticket.schema';
@@ -9,7 +9,6 @@ import { Location, LocationDocument } from '../locations/schemas/location.schema
 import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
-import { InvoicesService } from '../invoices/invoices.service';
 
 interface ActorContext {
   sub: string;
@@ -30,8 +29,6 @@ export class TicketsService {
     private locationCostsService: LocationCostsService,
     private realtimeService: RealtimeService,
     private notificationsService: NotificationsService,
-    @Inject(forwardRef(() => InvoicesService))
-    private invoicesService: InvoicesService,
   ) {}
 
   private populateFields = 'userId cityId pickupLocationId dropLocationId transportId vendorId';
@@ -59,7 +56,9 @@ export class TicketsService {
             ...baseFilter,
             $or: [
               { vendorId: actor.vendorId },
-              { status: 'PENDING', cityId: vendorCityId },
+              // Only show city-wide PENDING tickets that are NOT locked to a specific vendor
+              { status: 'PENDING', cityId: vendorCityId, vendorId: { $exists: false } },
+              { status: 'PENDING', cityId: vendorCityId, vendorId: null },
             ],
           }).populate(this.populateFields).sort({ createdAt: -1 }).exec();
         }
@@ -103,17 +102,22 @@ export class TicketsService {
       throw new BadRequestException('Pickup and drop locations must be different');
     }
 
+    // Check if the requesting user is assigned to a specific vendor
+    const requestingUser = await this.userModel.findById(userId).select('vendorId').lean();
+    const assignedVendorId = requestingUser?.vendorId ? String(requestingUser.vendorId) : undefined;
+
     const ticket = new this.model({
       ...data,
       userId,
       cityId: pickupLocation.cityId,
       status: 'PENDING',
+      ...(assignedVendorId ? { vendorId: assignedVendorId } : {}),
     });
 
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
     this.emitTicketUpdate(populated, 'created');
-    this.dispatchNotification(() => this.notifyTicketCreated(populated));
+    this.dispatchNotification(() => this.notifyTicketCreated(populated, assignedVendorId));
     return populated;
   }
 
@@ -278,13 +282,18 @@ export class TicketsService {
     return String(value);
   }
 
-  private async notifyTicketCreated(ticket: any) {
+  private async notifyTicketCreated(ticket: any, assignedVendorId?: string) {
     const citizen = this.toRecipient(ticket.userId);
     const journey = this.buildJourneyDetails(ticket);
 
+    // If assigned to a specific vendor, only notify that vendor; otherwise broadcast to city vendors
+    const vendorRecipients = assignedVendorId
+      ? await this.getVendorRecipients(assignedVendorId)
+      : await this.getVendorDispatchRecipients(ticket.cityId);
+
     await Promise.allSettled([
       this.notificationsService.sendRideRequested(citizen, journey),
-      this.notificationsService.sendVendorQueueAlerts(await this.getVendorDispatchRecipients(ticket.cityId), journey),
+      this.notificationsService.sendVendorQueueAlerts(vendorRecipients, journey),
     ]);
   }
 
@@ -323,7 +332,7 @@ export class TicketsService {
     await Promise.allSettled([
       this.notificationsService.sendRideCompleted(this.toRecipient(ticket.userId), journey),
       this.notificationsService.sendVendorJourneyCompleted(await this.getVendorRecipients(ticket.vendorId), journey),
-      this.invoicesService.sendInvoiceOnJourneyCompletion(ticket),
+      // Note: Invoice email is NOT auto-sent here. Admin must approve the invoice first.
     ]);
   }
 

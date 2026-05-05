@@ -39,4 +39,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsMongoId()
   cityId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  vendorId?: string;
 }

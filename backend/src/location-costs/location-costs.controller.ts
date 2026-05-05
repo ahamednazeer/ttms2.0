@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { LocationCostsService } from './location-costs.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
@@ -20,6 +21,10 @@ export class LocationCostsController {
   @AuditAction('LOCATION_COST_CREATE')
   @UseInterceptors(AuditInterceptor)
   create(@Body() data: CreateLocationCostDto) { return this.svc.create(data); }
+  @Post('import')
+  @AuditAction('LOCATION_COST_IMPORT')
+  @UseInterceptors(FileInterceptor('file'), AuditInterceptor)
+  importExcel(@UploadedFile() file: any) { return this.svc.importExcel(file); }
   @Put(':id')
   @AuditAction('LOCATION_COST_UPDATE')
   @UseInterceptors(AuditInterceptor)

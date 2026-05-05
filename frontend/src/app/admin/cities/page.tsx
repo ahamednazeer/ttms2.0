@@ -16,6 +16,11 @@ export default function CitiesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [form, setForm] = useState({ cityName: '', cityId: '' });
+  const [locationPreview, setLocationPreview] = useState<{
+    names: string[];
+    x: number;
+    y: number;
+  } | null>(null);
 
   const fetchCities = async () => {
     try {
@@ -58,25 +63,46 @@ export default function CitiesPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const getLocationName = (location: any) => location?.locationName || String(location || '');
+
+  const showRemainingLocations = (locations: any[], target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    setLocationPreview({
+      names: locations.slice(3).map(getLocationName),
+      x: Math.min(rect.left, window.innerWidth - 280),
+      y: rect.bottom + 8,
+    });
+  };
+
   const columns = [
     { key: 'cityId', label: 'City ID', sortable: true },
     { key: 'cityName', label: 'City Name', sortable: true },
     {
       key: 'locations', label: 'Locations',
-      render: (row: any) => (
+      render: (row: any) => {
+        const locations = row.locations || [];
+        return (
         <div className="flex gap-1 flex-wrap">
-          {(row.locations || []).slice(0, 3).map((loc: any, i: number) => (
+          {locations.slice(0, 3).map((loc: any, i: number) => (
             <span key={i} className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-xs font-mono text-blue-400">
-              {loc.locationName || loc}
+              {getLocationName(loc)}
             </span>
           ))}
-          {(row.locations || []).length > 3 && (
-            <span className="px-2 py-0.5 bg-blue-900/50 border border-blue-700 rounded text-xs font-mono text-blue-300">
-              +{row.locations.length - 3} more
-            </span>
+          {locations.length > 3 && (
+            <button
+              type="button"
+              onMouseEnter={(event) => showRemainingLocations(locations, event.currentTarget)}
+              onFocus={(event) => showRemainingLocations(locations, event.currentTarget)}
+              onMouseLeave={() => setLocationPreview(null)}
+              onBlur={() => setLocationPreview(null)}
+              className="px-2 py-0.5 bg-blue-900/50 border border-blue-700 rounded text-xs font-mono text-blue-300 hover:bg-blue-800/70 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              +{locations.length - 3} more
+            </button>
           )}
         </div>
-      ),
+        );
+      },
     },
     {
       key: 'actions', label: 'Actions',
@@ -106,6 +132,21 @@ export default function CitiesPage() {
       <p className="page-subtitle">Maintain the list of supported cities used across ticketing, vendor operations, and reporting.</p>
 
       <DataTable data={cities} columns={columns} />
+
+      {locationPreview && (
+        <div
+          className="fixed z-50 max-w-[260px] rounded-md border border-slate-700 bg-slate-950 px-3 py-2 shadow-xl"
+          style={{ left: locationPreview.x, top: locationPreview.y }}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {locationPreview.names.map((name, index) => (
+              <span key={`${name}-${index}`} className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-xs font-mono text-blue-300">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditData(null); }} title={editData ? 'Edit City' : 'Create City'}>
         <form onSubmit={handleSubmit} className="space-y-4">

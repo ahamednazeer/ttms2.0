@@ -3,23 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import type { City, Location, LocationCost } from '@/lib/types';
-import { CurrencyDollar, FloppyDisk } from '@phosphor-icons/react';
+import { CurrencyDollar, FloppyDisk, Plus, Trash, UploadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import { useTheme } from '@/components/ThemeProvider';
 
-type RouteRow = {
-  key: string;
-  cityId: string;
-  fromLocationId: string;
-  toLocationId: string;
-  fromName: string;
-  toName: string;
-  costId?: string;
-  cost: string;
-  distance: string;
-  hasSavedValue: boolean;
-};
+type SavedRoute = LocationCost & { fromName: string; toName: string };
 
 export default function LocationCostsPage() {
   const { theme, mounted } = useTheme();
@@ -28,9 +17,16 @@ export default function LocationCostsPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [selectedCityId, setSelectedCityId] = useState('');
-  const [rows, setRows] = useState<RouteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  // Add-route form
+  const [addForm, setAddForm] = useState({ fromLocationId: '', toLocationId: '', cost: '' });
+
+  // Editing existing route prices
+  const [editPrices, setEditPrices] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     try {
@@ -53,9 +49,7 @@ export default function LocationCostsPage() {
     }
   };
 
-  useEffect(() => {
-    void fetchData();
-  }, []);
+  useEffect(() => { void fetchData(); }, []);
 
   const locationsByCity = useMemo(() => {
     const grouped = new Map<string, Location[]>();
@@ -66,136 +60,145 @@ export default function LocationCostsPage() {
       current.push(location);
       grouped.set(cityId, current);
     }
-    for (const [cityId, cityLocations] of grouped.entries()) {
-      grouped.set(
-        cityId,
-        [...cityLocations].sort((left, right) => left.locationName.localeCompare(right.locationName)),
-      );
-    }
     return grouped;
   }, [locations]);
 
-  useEffect(() => {
-    if (!selectedCityId) {
-      setRows([]);
-      return;
-    }
+  const cityLocations = locationsByCity.get(selectedCityId) || [];
 
-    const cityLocations = locationsByCity.get(selectedCityId) || [];
-    const cityCosts = costs.filter((cost) => {
+  const savedRoutes: SavedRoute[] = useMemo(() => {
+    const cityRoutes = costs.filter((cost) => {
       const costCityId = typeof cost.cityId === 'string' ? cost.cityId : cost.cityId?._id;
       return costCityId === selectedCityId;
     });
+    return cityRoutes.map((cost) => {
+      const fromId = typeof cost.fromLocationId === 'string' ? cost.fromLocationId : cost.fromLocationId?._id;
+      const toId = typeof cost.toLocationId === 'string' ? cost.toLocationId : cost.toLocationId?._id;
+      const fromName = locations.find((l) => l._id === fromId)?.locationName || fromId || 'Unknown';
+      const toName = locations.find((l) => l._id === toId)?.locationName || toId || 'Unknown';
+      return { ...cost, fromName, toName };
+    });
+  }, [costs, locations, selectedCityId]);
 
-    const nextRows: RouteRow[] = [];
-    for (const fromLocation of cityLocations) {
-      for (const toLocation of cityLocations) {
-        if (fromLocation._id === toLocation._id) continue;
-
-        const existing = cityCosts.find((cost) => {
-          const fromId = typeof cost.fromLocationId === 'string' ? cost.fromLocationId : cost.fromLocationId?._id;
-          const toId = typeof cost.toLocationId === 'string' ? cost.toLocationId : cost.toLocationId?._id;
-          return fromId === fromLocation._id && toId === toLocation._id;
-        });
-
-        nextRows.push({
-          key: `${fromLocation._id}-${toLocation._id}`,
-          cityId: selectedCityId,
-          fromLocationId: fromLocation._id,
-          toLocationId: toLocation._id,
-          fromName: fromLocation.locationName,
-          toName: toLocation.locationName,
-          costId: existing?._id,
-          cost: existing ? String(existing.cost ?? '') : '',
-          distance: existing ? String(existing.distance ?? '') : '',
-          hasSavedValue: Boolean(existing),
-        });
-      }
+  // Initialize edit prices when routes change
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    for (const r of savedRoutes) {
+      initial[r._id] = String(r.cost ?? '');
     }
-
-    setRows(nextRows);
-  }, [costs, locationsByCity, selectedCityId]);
+    setEditPrices(initial);
+  }, [savedRoutes]);
 
   const selectedCity = cities.find((city) => city._id === selectedCityId);
-  const totalRoutes = rows.length;
-  const configuredRoutes = rows.filter((row) => row.hasSavedValue).length;
 
-  const updateRow = (key: string, field: 'cost' | 'distance', value: string) => {
-    setRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
-    );
-  };
-
-  const saveRow = async (row: RouteRow) => {
-    const cost = Number(row.cost);
-    const distance = Number(row.distance);
-
-    if (!row.cost || Number.isNaN(cost) || cost < 0) {
-      toast.error(`Enter a valid price for ${row.fromName} to ${row.toName}`);
-      return;
+  const handleAddRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cost = Number(addForm.cost);
+    if (!addForm.fromLocationId || !addForm.toLocationId) {
+      toast.error('Select both locations'); return;
     }
-
-    if (!row.distance || Number.isNaN(distance) || distance < 0) {
-      toast.error(`Enter a valid distance for ${row.fromName} to ${row.toName}`);
-      return;
+    if (addForm.fromLocationId === addForm.toLocationId) {
+      toast.error('From and To must be different'); return;
     }
+    if (!addForm.cost || Number.isNaN(cost) || cost < 0) {
+      toast.error('Enter a valid price'); return;
+    }
+    // Check duplicate
+    const existing = savedRoutes.find((r) => {
+      const fromId = typeof r.fromLocationId === 'string' ? r.fromLocationId : r.fromLocationId?._id;
+      const toId = typeof r.toLocationId === 'string' ? r.toLocationId : r.toLocationId?._id;
+      return fromId === addForm.fromLocationId && toId === addForm.toLocationId;
+    });
+    if (existing) { toast.error('This route already exists'); return; }
 
-    setSavingKey(row.key);
+    setSavingKey('add');
     try {
-      const payload = {
-        cityId: row.cityId,
-        fromLocationId: row.fromLocationId,
-        toLocationId: row.toLocationId,
-        cost,
-        distance,
-      };
-
-      if (row.costId) {
-        await api.updateLocationCost(row.costId, payload);
-      } else {
-        await api.createLocationCost(payload);
-      }
-
-      toast.success(`Saved ${row.fromName} to ${row.toName}`);
+      await api.createLocationCost({ cityId: selectedCityId, fromLocationId: addForm.fromLocationId, toLocationId: addForm.toLocationId, cost });
+      toast.success('Route added');
+      setAddForm({ fromLocationId: '', toLocationId: '', cost: '' });
       await fetchData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save route pricing');
-    } finally {
-      setSavingKey(null);
+      toast.error(error.message || 'Failed to add route');
+    } finally { setSavingKey(null); }
+  };
+
+  const handleUpdatePrice = async (route: SavedRoute) => {
+    const cost = Number(editPrices[route._id]);
+    if (!editPrices[route._id] || Number.isNaN(cost) || cost < 0) {
+      toast.error(`Enter a valid price for ${route.fromName} → ${route.toName}`); return;
+    }
+    const fromId = typeof route.fromLocationId === 'string' ? route.fromLocationId : route.fromLocationId?._id;
+    const toId = typeof route.toLocationId === 'string' ? route.toLocationId : route.toLocationId?._id;
+    setSavingKey(route._id);
+    try {
+      await api.updateLocationCost(route._id, { cityId: selectedCityId, fromLocationId: fromId || '', toLocationId: toId || '', cost });
+      toast.success(`Updated ${route.fromName} → ${route.toName}`);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update route');
+    } finally { setSavingKey(null); }
+  };
+
+  const handleDeleteRoute = async (route: SavedRoute) => {
+    if (!confirm(`Delete route ${route.fromName} → ${route.toName}?`)) return;
+    try {
+      await api.deleteLocationCost(route._id);
+      toast.success('Route deleted');
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete route');
     }
   };
 
-  if (loading) return <CrudPageSkeleton cols={6} />;
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importFile) {
+      toast.error('Choose an Excel file'); return;
+    }
+
+    setImporting(true);
+    try {
+      const result = await api.importLocationCosts(importFile);
+      toast.success(`Imported ${result.importedRows} rows: ${result.routesCreated} added, ${result.routesUpdated} updated`);
+      setImportFile(null);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to import route pricing');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  if (loading) return <CrudPageSkeleton cols={5} />;
+
+  const thBorder = isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' };
+  const rowBg = (i: number) => isDark
+    ? { borderColor: 'rgba(30, 41, 59, 0.8)', background: i % 2 === 0 ? 'rgba(2, 6, 23, 0.1)' : 'rgba(15, 23, 42, 0.18)' }
+    : { borderColor: 'var(--border)', background: i % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 32%, transparent)' };
+  const theadBg = isDark ? { background: 'rgba(15, 23, 42, 0.8)' } : { background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' };
+  const tdClass = `px-4 py-3 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`;
+  const thClass = `px-4 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${isDark ? 'text-slate-400' : 'muted-text'}`;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-chivo font-bold uppercase tracking-wider flex items-center gap-3">
             <CurrencyDollar size={28} weight="duotone" className="text-green-400" /> Route Pricing
           </h1>
-          <p className="page-subtitle mt-3">
-            The system auto-arranges every route pair for the selected city. Update the price and distance for any route, then save it.
-          </p>
+          <p className="page-subtitle mt-3">Manually add routes and set prices for each city. Select a city to view and manage its routes.</p>
         </div>
         <div className="w-full lg:w-72">
           <label className="block text-slate-400 text-xs uppercase tracking-wider mb-2 font-mono">City</label>
-          <select
-            value={selectedCityId}
-            onChange={(event) => setSelectedCityId(event.target.value)}
-            className="input-modern"
-          >
+          <select value={selectedCityId} onChange={(e) => setSelectedCityId(e.target.value)} className="input-modern">
             <option value="">Select City</option>
-            {cities.map((city) => (
-              <option key={city._id} value={city._id}>
-                {city.cityName}
-              </option>
-            ))}
+            {cities.map((city) => <option key={city._id} value={city._id}>{city.cityName}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="panel p-5">
           <p className="section-title">Selected City</p>
           <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>
@@ -203,122 +206,135 @@ export default function LocationCostsPage() {
           </p>
         </div>
         <div className="panel p-5">
-          <p className="section-title">Route Pairs</p>
-          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>{totalRoutes}</p>
+          <p className="section-title">Configured Routes</p>
+          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>{savedRoutes.length}</p>
         </div>
-        <div className="panel p-5">
-          <p className="section-title">Configured</p>
-          <p className={`mt-2 text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-[color:var(--text-primary)]'}`}>
-            {configuredRoutes} / {totalRoutes}
-          </p>
-        </div>
+      </div>
+
+      <div className="panel p-6">
+        <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-4">Import Routes</h3>
+        <form onSubmit={handleImport} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Excel file</label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              className="input-modern w-full"
+            />
+            <p className={`mt-2 text-xs ${isDark ? 'text-slate-500' : 'secondary-text'}`}>
+              Required columns: Location pick Up, Drop Off Location, Amount, City.
+            </p>
+          </div>
+          <button type="submit" disabled={importing || !importFile} className="btn-primary inline-flex items-center gap-2">
+            <UploadSimple size={16} /> {importing ? 'Importing...' : 'Import Excel'}
+          </button>
+        </form>
       </div>
 
       {!selectedCityId ? (
         <div className={`panel px-6 py-10 text-center ${isDark ? 'text-slate-400' : 'secondary-text'}`}>
-          Select a city to auto-generate its route pricing list.
-        </div>
-      ) : rows.length === 0 ? (
-        <div className={`panel px-6 py-10 text-center ${isDark ? 'text-slate-400' : 'secondary-text'}`}>
-          Add at least two locations to this city and the system will arrange the routes automatically.
+          Select a city to manage its route pricing.
         </div>
       ) : (
-        <div className="panel overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px]">
-              <thead
-                style={isDark
-                  ? { background: 'rgba(15, 23, 42, 0.8)' }
-                  : { background: 'color-mix(in srgb, var(--surface-2) 88%, transparent)' }}
-              >
-                <tr>
-                  {['From', 'To', 'Price ($)', 'Distance (km)', 'Status', 'Action'].map((label) => (
-                    <th
-                      key={label}
-                      className={`px-4 py-4 text-left text-xs font-mono uppercase tracking-wider border-b ${
-                        isDark ? 'text-slate-400' : 'muted-text'
-                      }`}
-                      style={isDark ? { borderColor: 'rgba(30, 41, 59, 0.9)' } : { borderColor: 'var(--border)' }}
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => {
-                  const isSaving = savingKey === row.key;
-                  return (
-                    <tr
-                      key={row.key}
-                      className="border-t"
-                      style={isDark
-                        ? {
-                            borderColor: 'rgba(30, 41, 59, 0.8)',
-                            background: index % 2 === 0 ? 'rgba(2, 6, 23, 0.1)' : 'rgba(15, 23, 42, 0.18)',
-                          }
-                        : {
-                            borderColor: 'var(--border)',
-                            background: index % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 32%, transparent)',
-                          }}
-                    >
-                      <td className={`px-4 py-4 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}>{row.fromName}</td>
-                      <td className={`px-4 py-4 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-[color:var(--text-primary)]'}`}>{row.toName}</td>
-                      <td className="px-4 py-4">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={row.cost}
-                          onChange={(event) => updateRow(row.key, 'cost', event.target.value)}
-                          className="input-modern h-10 min-w-[140px]"
-                          placeholder="0.00"
-                        />
-                      </td>
-                      <td className="px-4 py-4">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={row.distance}
-                          onChange={(event) => updateRow(row.key, 'distance', event.target.value)}
-                          className="input-modern h-10 min-w-[140px]"
-                          placeholder="0.0"
-                        />
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-mono uppercase tracking-wide ${
-                            row.hasSavedValue
-                              ? isDark
-                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'
-                              : isDark
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
-                                : 'bg-amber-500/10 text-amber-700 border border-amber-500/30'
-                          }`}
-                        >
-                          {row.hasSavedValue ? 'Configured' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <button
-                          type="button"
-                          onClick={() => void saveRow(row)}
-                          disabled={isSaving}
-                          className="btn-primary inline-flex items-center gap-2"
-                        >
-                          <FloppyDisk size={16} />
-                          {isSaving ? 'Saving...' : row.hasSavedValue ? 'Update' : 'Save'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <>
+          {/* Add Route Form */}
+          <div className="panel p-6">
+            <h3 className="text-sm font-mono text-slate-400 uppercase tracking-widest mb-4">Add New Route</h3>
+            {cityLocations.length < 2 ? (
+              <p className={`text-sm ${isDark ? 'text-slate-500' : 'secondary-text'}`}>Add at least two locations to this city to configure route pricing.</p>
+            ) : (
+              <form onSubmit={handleAddRoute} className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">From</label>
+                  <select value={addForm.fromLocationId} onChange={e => setAddForm({ ...addForm, fromLocationId: e.target.value })} className="input-modern w-48" required>
+                    <option value="">Select</option>
+                    {cityLocations.map((l) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">To</label>
+                  <select value={addForm.toLocationId} onChange={e => setAddForm({ ...addForm, toLocationId: e.target.value })} className="input-modern w-48" required>
+                    <option value="">Select</option>
+                    {cityLocations.filter(l => l._id !== addForm.fromLocationId).map((l) => <option key={l._id} value={l._id}>{l.locationName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Price ($)</label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={addForm.cost}
+                    onChange={e => setAddForm({ ...addForm, cost: e.target.value })}
+                    className="input-modern h-10 w-36" placeholder="0.00" required
+                  />
+                </div>
+                <button type="submit" disabled={savingKey === 'add'} className="btn-primary inline-flex items-center gap-2">
+                  <Plus size={16} /> {savingKey === 'add' ? 'Adding...' : 'Add Route'}
+                </button>
+              </form>
+            )}
           </div>
-        </div>
+
+          {/* Routes Table */}
+          {savedRoutes.length === 0 ? (
+            <div className={`panel px-6 py-10 text-center ${isDark ? 'text-slate-400' : 'secondary-text'}`}>
+              No routes configured yet. Add the first route above.
+            </div>
+          ) : (
+            <div className="panel overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead style={theadBg}>
+                    <tr>
+                      {['From', 'To', 'Price ($)', 'Action'].map((label) => (
+                        <th key={label} className={thClass} style={thBorder}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {savedRoutes.map((route, index) => {
+                      const isSaving = savingKey === route._id;
+                      return (
+                        <tr key={route._id} className="border-t" style={rowBg(index)}>
+                          <td className={tdClass}>{route.fromName}</td>
+                          <td className={tdClass}>{route.toName}</td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number" step="0.01" min="0"
+                              value={editPrices[route._id] ?? ''}
+                              onChange={e => setEditPrices(prev => ({ ...prev, [route._id]: e.target.value }))}
+                              className="input-modern h-9 min-w-[120px]"
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void handleUpdatePrice(route)}
+                                disabled={isSaving}
+                                className="btn-primary inline-flex items-center gap-1.5 text-sm"
+                              >
+                                <FloppyDisk size={15} /> {isSaving ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDeleteRoute(route)}
+                                className="btn-danger inline-flex items-center gap-1.5 text-sm"
+                              >
+                                <Trash size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

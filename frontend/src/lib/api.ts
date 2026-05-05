@@ -8,6 +8,7 @@ import type {
   CreateVendorInput,
   Location,
   LocationCost,
+  LocationCostImportResult,
   Ticket,
   Transport,
   UpdateUserInput,
@@ -177,6 +178,29 @@ class ApiClient {
     return this.request(`/locationcost/${id}`, { method: 'DELETE' });
   }
 
+  async importLocationCosts(file: File): Promise<LocationCostImportResult> {
+    const token = this.getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/locationcost/import`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Import failed' }));
+      throw new Error(error.message || error.detail || 'Import failed');
+    }
+
+    return response.json();
+  }
+
   // ============ Vendors ============
   async getVendors(): Promise<Vendor[]> {
     return this.request('/vendor');
@@ -300,6 +324,21 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ vendorId, month, year }),
     });
+  }
+
+  async approveInvoice(invoiceId: string) {
+    return this.request(`/invoice/${invoiceId}/approve`, { method: 'POST' });
+  }
+
+  async rejectInvoice(invoiceId: string, remarks: string) {
+    return this.request(`/invoice/${invoiceId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  }
+
+  async deleteInvoice(invoiceId: string) {
+    return this.request(`/invoice/${invoiceId}`, { method: 'DELETE' });
   }
 
   async downloadInvoice(invoiceId: string): Promise<Blob> {
