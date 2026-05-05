@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/FeedbackState';
 import { useTheme } from '@/components/ThemeProvider';
 import { useTicketRealtime } from '@/hooks/useTicketRealtime';
 import type { City, Location, Ticket, User } from '@/lib/types';
+import { getRefName } from '@/lib/refs';
 import { CarSimple, MapPin, CheckCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { SingleCardSkeleton } from '@/components/Skeleton';
@@ -42,9 +43,9 @@ export default function TransportDashboard() {
 
   const activeTicket = tickets.find(t => t.status === 'ASSIGNED' || t.status === 'RIDE_STARTED');
   const activeTimelineStep = activeTicket?.status === 'RIDE_STARTED' ? 'Ride Started' : 'Assigned';
-  const getLocationName = (value?: string | Location) => typeof value === 'string' ? '-' : value?.locationName || '-';
-  const getUserName = (value?: string | User) => typeof value === 'string' ? '-' : value?.firstName || '-';
-  const getCityName = (value?: string | City) => typeof value === 'string' ? '-' : value?.cityName || '-';
+  const getLocationName = (value?: string | Location) => getRefName(value, 'locationName');
+  const getUserName = (value?: string | User) => getRefName(value, 'firstName');
+  const getCityName = (value?: string | City) => getRefName(value, 'cityName');
   const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : '-';
   const formatMoney = (value?: number) => `$${(value || 0).toFixed(2)}`;
   const labelTone = isDark ? 'text-slate-500' : 'muted-text';

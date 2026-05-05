@@ -9,6 +9,7 @@ import { Location, LocationDocument } from '../locations/schemas/location.schema
 import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 interface ActorContext {
   sub: string;
@@ -80,11 +81,11 @@ export class TicketsService {
         ? await this.vendorModel.findById(actor.vendorId).select('cityId').lean()
         : null;
       const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
-      const matchesAssignedVendor = actor.vendorId && this.normalizeId(ticket.vendorId) === actor.vendorId;
+      const matchesAssignedVendor = actor.vendorId && normalizeRefId(ticket.vendorId) === actor.vendorId;
       const matchesPendingCity =
         ticket.status === 'PENDING' &&
         !!vendorCityId &&
-        this.normalizeId(ticket.cityId) === vendorCityId;
+        normalizeRefId(ticket.cityId) === vendorCityId;
 
       if (!matchesAssignedVendor && !matchesPendingCity) {
         throw new ForbiddenException('Cannot access tickets outside your vendor scope');
@@ -101,6 +102,7 @@ export class TicketsService {
     if (data.pickupLocationId === data.dropLocationId) {
       throw new BadRequestException('Pickup and drop locations must be different');
     }
+    const cost = await this.getRouteCostOrThrow(data);
 
     // Check if the requesting user is assigned to a specific vendor
     const requestingUser = await this.userModel.findById(userId).select('vendorId').lean();
@@ -110,6 +112,7 @@ export class TicketsService {
       ...data,
       userId,
       cityId: pickupLocation.cityId,
+      cost,
       status: 'PENDING',
       ...(assignedVendorId ? { vendorId: assignedVendorId } : {}),
     });
@@ -131,15 +134,15 @@ export class TicketsService {
 
     if (actor.role === 'VENDOR') {
       if (!actor.vendorId) throw new ForbiddenException('Vendor access is not configured');
-      if (this.normalizeId(transport.vendorId) !== actor.vendorId) {
+      if (normalizeRefId(transport.vendorId) !== actor.vendorId) {
         throw new ForbiddenException('Cannot assign a transport from another vendor');
       }
       const vendor = await this.vendorModel.findById(actor.vendorId).select('cityId').lean();
       const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
-      if (vendorCityId && this.normalizeId(ticket.cityId) !== vendorCityId) {
+      if (vendorCityId && normalizeRefId(ticket.cityId) !== vendorCityId) {
         throw new ForbiddenException('Cannot assign tickets outside your city scope');
       }
-      if (ticket.vendorId && this.normalizeId(ticket.vendorId) !== actor.vendorId) {
+      if (ticket.vendorId && normalizeRefId(ticket.vendorId) !== actor.vendorId) {
         throw new ForbiddenException('Cannot assign tickets outside your vendor scope');
       }
     }
@@ -237,7 +240,7 @@ export class TicketsService {
   private assertTicketAccess(ticket: any, actor: ActorContext) {
     if (actor.role === 'SUPERADMIN') return;
 
-    if (actor.role === 'USER' && this.normalizeId(ticket.userId) !== actor.sub) {
+    if (actor.role === 'USER' && normalizeRefId(ticket.userId) !== actor.sub) {
       throw new ForbiddenException('Cannot access another user ticket');
     }
 
@@ -245,14 +248,14 @@ export class TicketsService {
       if (!actor.vendorId) {
         throw new ForbiddenException('Cannot access tickets outside your vendor scope');
       }
-      if (this.normalizeId(ticket.vendorId) === actor.vendorId) {
+      if (normalizeRefId(ticket.vendorId) === actor.vendorId) {
         return;
       }
       throw new ForbiddenException('Cannot access tickets outside your vendor scope');
     }
 
     if (actor.role === 'TRANSPORT') {
-      if (!actor.transportId || this.normalizeId(ticket.transportId) !== actor.transportId) {
+      if (!actor.transportId || normalizeRefId(ticket.transportId) !== actor.transportId) {
         throw new ForbiddenException('Cannot access tickets outside your transport scope');
       }
     }
@@ -262,29 +265,21 @@ export class TicketsService {
     if (actor.role !== 'TRANSPORT') {
       throw new ForbiddenException('Only assigned transport can update ride status');
     }
-    if (!actor.transportId || this.normalizeId(ticket.transportId) !== actor.transportId) {
+    if (!actor.transportId || normalizeRefId(ticket.transportId) !== actor.transportId) {
       throw new ForbiddenException('Cannot update tickets outside your transport scope');
     }
   }
 
   private async getRouteCostOrThrow(ticket: any) {
     const costEntry = await this.locationCostsService.findCost(
-      this.normalizeId(ticket.pickupLocationId),
-      this.normalizeId(ticket.dropLocationId),
+      normalizeRefId(ticket.pickupLocationId),
+      normalizeRefId(ticket.dropLocationId),
     );
     const cost = Number(costEntry?.cost || 0);
     if (!costEntry || Number.isNaN(cost) || cost <= 0) {
       throw new BadRequestException('Route price is not configured. Set a price greater than 0 before starting the ride.');
     }
     return cost;
-  }
-
-  private normalizeId(value: any) {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    if (value._id) return String(value._id);
-    if (value.toString) return value.toString();
-    return String(value);
   }
 
   private async notifyTicketCreated(ticket: any, assignedVendorId?: string) {
@@ -305,7 +300,7 @@ export class TicketsService {
   private async notifyTicketAssigned(ticket: any) {
     const transportUser = await this.userModel.findOne({
       role: 'TRANSPORT',
-      transportId: this.normalizeId(ticket.transportId),
+      transportId: normalizeRefId(ticket.transportId),
       active: true,
       email: { $exists: true, $ne: '' },
     }).select('email firstName lastName').lean();
@@ -343,7 +338,7 @@ export class TicketsService {
 
   private async getVendorDispatchRecipients(cityId: any) {
     const vendors = await this.vendorModel.find({
-      cityId: this.normalizeId(cityId),
+      cityId: normalizeRefId(cityId),
       active: true,
     }).select('email vendorName').lean();
 
@@ -371,7 +366,7 @@ export class TicketsService {
     const vendor = await this.vendorModel.findById(vendorId).select('email vendorName').lean();
     const vendorUsers = await this.userModel.find({
       role: 'VENDOR',
-      vendorId: this.normalizeId(vendorId),
+      vendorId: normalizeRefId(vendorId),
       active: true,
       email: { $exists: true, $ne: '' },
     }).select('email firstName lastName').lean();

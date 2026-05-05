@@ -5,6 +5,7 @@ import { VendorsService } from '../vendors/vendors.service';
 import { UsersService } from '../users/users.service';
 import { TransportsService } from '../transports/transports.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 @Injectable()
 export class DashboardService {
@@ -20,7 +21,7 @@ export class DashboardService {
   async getStats(actor?: { role: string; vendorId?: string }) {
     if (actor?.role === 'VENDOR') {
       const vendor = actor.vendorId ? await this.vendorsService.findOne(actor.vendorId) : null;
-      const vendorCityId = vendor && typeof vendor.cityId !== 'string' ? vendor.cityId?._id : undefined;
+      const vendorCityId = normalizeRefId(vendor?.cityId);
       const pendingQueueCount = vendorCityId
         ? await this.ticketsService.count({ status: 'PENDING', cityId: vendorCityId })
         : 0;

@@ -6,6 +6,7 @@ import { User, UserDocument } from './schemas/user.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { presentUser } from './users.presenter';
 import { NotificationsService } from '../notifications/notifications.service';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 @Injectable()
 export class UsersService {
@@ -111,7 +112,7 @@ export class UsersService {
     if (previous.role !== current.role) changes.push(`Role changed from ${previous.role} to ${current.role}.`);
     if ((previous.email || '') !== (current.email || '')) changes.push(`Email updated to ${current.email || 'not set'}.`);
     if ((previous.phone || '') !== (current.phone || '')) changes.push(`Phone updated to ${current.phone || 'not set'}.`);
-    if (String(previous.cityId || '') !== String(current.cityId?._id || current.cityId || '')) changes.push('City assignment was updated.');
+    if (normalizeRefId(previous.cityId) !== normalizeRefId(current.cityId)) changes.push('City assignment was updated.');
     return changes;
   }
 

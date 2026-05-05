@@ -10,6 +10,7 @@ import * as path from 'path';
 import { Response } from 'express';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 interface InvoiceLineItem {
   sNo: number;
@@ -64,7 +65,7 @@ export class InvoicesService {
     invoice.adminRemarks = '';
     const saved = await invoice.save();
 
-    const vendor = await this.vendorsService.findOne(this.normalizeRefId(invoice.vendorId));
+    const vendor = await this.vendorsService.findOne(normalizeRefId(invoice.vendorId));
     const recipients = await this.getVendorRecipients(String(invoice.vendorId), vendor);
     const attachment = vendor ? {
       filename: `ttms-invoice-${invoice.month}-${invoice.year}.pdf`,
@@ -93,7 +94,7 @@ export class InvoicesService {
     invoice.adminRemarks = remarks || '';
     const saved = await invoice.save();
 
-    const vendor = await this.vendorsService.findOne(this.normalizeRefId(invoice.vendorId));
+    const vendor = await this.vendorsService.findOne(normalizeRefId(invoice.vendorId));
     const recipients = await this.getVendorRecipients(String(invoice.vendorId), vendor);
 
     this.dispatchNotification(() =>
@@ -120,7 +121,7 @@ export class InvoicesService {
 
     const vendor = typeof invoice.vendorId === 'object' && invoice.vendorId !== null && 'vendorName' in invoice.vendorId
       ? invoice.vendorId
-      : await this.vendorsService.findOne(this.normalizeRefId(invoice.vendorId));
+      : await this.vendorsService.findOne(normalizeRefId(invoice.vendorId));
     const hydratedInvoice = await this.ensureInvoiceTicketDetails(invoice as any);
 
     const doc = new PDFDocument({ size: this.invoicePageSize, margin: 24 });
@@ -487,14 +488,6 @@ export class InvoicesService {
       .join(' ');
   }
 
-  private normalizeRefId(value: any) {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    if (value._id) return String(value._id);
-    if (value.toString) return value.toString();
-    return String(value);
-  }
-
   private populateInvoiceQuery<T>(query: T) {
     return (query as any)
       .populate('vendorId')
@@ -526,7 +519,7 @@ export class InvoicesService {
     }
 
     const hydratedTickets = await Promise.all(
-      tickets.map((ticket: any) => this.ticketsService.findOne(this.normalizeRefId(ticket))),
+      tickets.map((ticket: any) => this.ticketsService.findOne(normalizeRefId(ticket))),
     );
 
     return {

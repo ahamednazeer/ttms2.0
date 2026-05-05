@@ -51,7 +51,7 @@ export interface LocationCostImportPreview extends LocationCostImportResult {
 interface ImportPlan {
   rows: ImportPlanRow[];
   errors: ImportRowError[];
-    summary: LocationCostImportResult;
+  summary: LocationCostImportResult;
 }
 
 @Injectable()
@@ -67,6 +67,7 @@ export class LocationCostsService {
     if (data.fromLocationId === data.toLocationId) {
       throw new BadRequestException('From and to locations must be different');
     }
+    this.assertPositiveCost(data.cost);
     try {
       return await new this.model(data).save();
     } catch (error) {
@@ -81,6 +82,9 @@ export class LocationCostsService {
     const nextTo = data.toLocationId || String(current.toLocationId);
     if (nextFrom === nextTo) {
       throw new BadRequestException('From and to locations must be different');
+    }
+    if (data.cost !== undefined) {
+      this.assertPositiveCost(data.cost);
     }
     try {
       const d = await this.model.findByIdAndUpdate(id, data, { returnDocument: 'after' });
@@ -299,8 +303,8 @@ export class LocationCostsService {
         const amount = Number(amountText.replace(/[$,\s]/g, ''));
 
         if (!pickup && !dropoff && !city && !amountText) return;
-        if (!pickup || !dropoff || !city || !amountText || Number.isNaN(amount) || amount < 0) {
-          errors.push({ rowNumber, message: 'Pickup, drop-off, amount, and city are required' });
+        if (!pickup || !dropoff || !city || !amountText || Number.isNaN(amount) || amount <= 0) {
+          errors.push({ rowNumber, message: 'Pickup, drop-off, city, and an amount greater than 0 are required' });
           return;
         }
 
@@ -385,5 +389,12 @@ export class LocationCostsService {
 
   private cellText(value: unknown) {
     return String(value ?? '').trim();
+  }
+
+  private assertPositiveCost(value: unknown) {
+    const cost = Number(value);
+    if (Number.isNaN(cost) || cost <= 0) {
+      throw new BadRequestException('Route price must be greater than 0');
+    }
   }
 }

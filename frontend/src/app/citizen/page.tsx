@@ -1,12 +1,13 @@
 'use client';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CompletedJourneyCard, TripProgressTracker } from '@/components/CompletedJourneyCard';
 import { useTheme } from '@/components/ThemeProvider';
 import { useTicketRealtime } from '@/hooks/useTicketRealtime';
-import type { CreateTicketInput, Location, Ticket, Transport } from '@/lib/types';
+import type { CreateTicketInput, Location, LocationCost, Ticket, Transport } from '@/lib/types';
+import { getRefId, getRefName } from '@/lib/refs';
 import { CaretDown, Path, MapPin, CarSimple, Key } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { SingleCardSkeleton } from '@/components/Skeleton';
@@ -27,6 +28,7 @@ function getTodayDateValue() {
 export default function CitizenPage() {
   const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [routeCosts, setRouteCosts] = useState<LocationCost[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [lastCompletedTicket, setLastCompletedTicket] = useState<TicketRecord | null>(null);
@@ -37,20 +39,45 @@ export default function CitizenPage() {
   const minPickupDate = getTodayDateValue();
   const { theme, mounted } = useTheme();
   const isDark = !mounted || theme === 'dark';
+  const getLocationName = (value?: string | Location) => getRefName(value, 'locationName');
+
+  const sortedLocations = useMemo(
+    () => [...locations].sort((left, right) => left.locationName.localeCompare(right.locationName)),
+    [locations],
+  );
+  const pricedRoutesByPickup = useMemo(() => {
+    const grouped = new Map<string, Set<string>>();
+
+    for (const route of routeCosts) {
+      if (Number(route.cost || 0) <= 0) continue;
+      const fromId = getRefId(route.fromLocationId);
+      const toId = getRefId(route.toLocationId);
+      if (!fromId || !toId) continue;
+      const drops = grouped.get(fromId) || new Set<string>();
+      drops.add(toId);
+      grouped.set(fromId, drops);
+    }
+
+    return grouped;
+  }, [routeCosts]);
+  const pickupLocations = sortedLocations.filter((location) => pricedRoutesByPickup.has(location._id));
+  const dropLocations = form.pickupLocationId
+    ? sortedLocations.filter((location) => pricedRoutesByPickup.get(form.pickupLocationId)?.has(location._id))
+    : [];
+  const selectedPickup = sortedLocations.find((location) => location._id === form.pickupLocationId);
+  const selectedDrop = sortedLocations.find((location) => location._id === form.dropLocationId);
+  const selectedRouteHasPrice = Boolean(
+    form.pickupLocationId &&
+    form.dropLocationId &&
+    pricedRoutesByPickup.get(form.pickupLocationId)?.has(form.dropLocationId),
+  );
   const isBookingReady = Boolean(
     form.pickupLocationId &&
     form.dropLocationId &&
     form.pickupDate &&
-    form.pickupLocationId !== form.dropLocationId,
+    form.pickupLocationId !== form.dropLocationId &&
+    selectedRouteHasPrice,
   );
-
-  const getLocationName = (value?: string | Location) =>
-    typeof value === 'string' ? '-' : value?.locationName || '-';
-
-  const sortedLocations = [...locations].sort((left, right) => left.locationName.localeCompare(right.locationName));
-  const dropLocations = sortedLocations.filter((location) => location._id !== form.pickupLocationId);
-  const selectedPickup = sortedLocations.find((location) => location._id === form.pickupLocationId);
-  const selectedDrop = sortedLocations.find((location) => location._id === form.dropLocationId);
 
   const LocationMenu = ({
     type,
@@ -99,7 +126,7 @@ export default function CitizenPage() {
   );
 
   const getTransportValue = (value: string | Transport | undefined, key: 'vehicleNo' | 'ownerDetails' | 'contact') =>
-    typeof value === 'string' ? '-' : value?.[key] || '-';
+    getRefName(value, key);
   const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : '-';
   const formatMoney = (value?: number) => `$${(value || 0).toFixed(2)}`;
   const labelTone = isDark ? 'text-slate-500' : 'muted-text';
@@ -142,10 +169,14 @@ export default function CitizenPage() {
   useEffect(() => {
     Promise.all([api.getTickets(), api.getMe()])
       .then(async ([t, me]) => {
-        const cityId = typeof me?.cityId === 'string' ? me.cityId : me?.cityId?._id;
-        const l = await api.getLocations(cityId);
+        const cityId = getRefId(me?.cityId);
+        const [l, costs] = await Promise.all([
+          api.getLocations(cityId),
+          cityId ? api.getLocationCostsByCity(cityId) : Promise.resolve([]),
+        ]);
         setTickets(t || []);
         setLocations(l || []);
+        setRouteCosts(costs || []);
       })
       .catch((error) => {
         console.error(error);
@@ -381,15 +412,20 @@ export default function CitizenPage() {
               type="pickup"
               value={selectedPickup?.locationName || ''}
               placeholder="Select pickup"
-              options={sortedLocations}
+              options={pickupLocations}
               onSelect={(pickupLocationId) => setForm((current) => ({
                 ...current,
                 pickupLocationId,
-                dropLocationId: current.dropLocationId === pickupLocationId ? '' : current.dropLocationId,
+                dropLocationId: pricedRoutesByPickup.get(pickupLocationId)?.has(current.dropLocationId)
+                  ? current.dropLocationId
+                  : '',
               }))}
             />
             {locations.length === 0 && (
               <p className={`mt-2 text-xs ${secondaryTone}`}>No pickup locations are assigned to your city yet.</p>
+            )}
+            {locations.length > 0 && pickupLocations.length === 0 && (
+              <p className={`mt-2 text-xs ${secondaryTone}`}>No priced routes are configured for your city yet.</p>
             )}
           </div>
           <div>
@@ -422,8 +458,10 @@ export default function CitizenPage() {
           <div className="rounded-xl border p-4 space-y-3" style={softPanelStyle}>
             <p className={`font-mono text-xs uppercase ${labelTone}`}>Booking Checklist</p>
             {!form.pickupLocationId && <p className={secondaryTone}>Select a pickup location to continue.</p>}
-            {form.pickupLocationId && !form.dropLocationId && <p className={secondaryTone}>Select a drop location to complete your route.</p>}
+            {form.pickupLocationId && dropLocations.length === 0 && <p className={secondaryTone}>No priced drop locations are configured for this pickup.</p>}
+            {form.pickupLocationId && dropLocations.length > 0 && !form.dropLocationId && <p className={secondaryTone}>Select a drop location to complete your route.</p>}
             {form.pickupLocationId && form.dropLocationId && form.pickupLocationId === form.dropLocationId && <p className={secondaryTone}>Pickup and drop locations need to be different.</p>}
+            {form.pickupLocationId && form.dropLocationId && form.pickupLocationId !== form.dropLocationId && !selectedRouteHasPrice && <p className={secondaryTone}>This route is not priced yet.</p>}
             {form.pickupLocationId && form.dropLocationId && form.pickupLocationId !== form.dropLocationId && !form.pickupDate && <p className={secondaryTone}>Choose your travel date before submitting the request.</p>}
             {isBookingReady && <p className={`font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Everything looks good. You can book this ride now.</p>}
           </div>

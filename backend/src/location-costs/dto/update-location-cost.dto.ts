@@ -17,7 +17,7 @@ export class UpdateLocationCostDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   cost?: number;
 
   @IsOptional()

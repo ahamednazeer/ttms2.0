@@ -7,6 +7,7 @@ import { Storefront, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import ConfirmModal from '@/components/ConfirmModal';
+import { getRefId, getRefName } from '@/lib/refs';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -32,7 +33,7 @@ export default function VendorsPage() {
 
   const vendorUsers = users.filter((user) => user.role === 'VENDOR');
   const getLinkedUserId = (vendorId: string) =>
-    vendorUsers.find((user) => (typeof user.vendorId === 'string' ? user.vendorId : user.vendorId?._id) === vendorId)?._id || '';
+    vendorUsers.find((user) => getRefId(user.vendorId) === vendorId)?._id || '';
 
   const handleVendorUserChange = (userId: string) => {
     const selectedUser = vendorUsers.find((user) => user._id === userId);
@@ -43,7 +44,7 @@ export default function VendorsPage() {
         userId,
         contact: selectedUser.phone || currentForm.contact,
         email: selectedUser.email || currentForm.email,
-        cityId: typeof selectedUser.cityId === 'string' ? selectedUser.cityId : selectedUser.cityId?._id || currentForm.cityId,
+        cityId: getRefId(selectedUser.cityId) || currentForm.cityId,
       };
     });
   };
@@ -76,11 +77,11 @@ export default function VendorsPage() {
     { key: 'vendorName', label: 'Vendor Name', sortable: true },
     { key: 'contact', label: 'Contact' },
     { key: 'email', label: 'Email' },
-    { key: 'portalUser', label: 'Portal User', render: (r: Vendor) => vendorUsers.find((user) => (typeof user.vendorId === 'string' ? user.vendorId : user.vendorId?._id) === r._id)?.username || '-' },
-    { key: 'city', label: 'City', render: (r: Vendor) => (typeof r.cityId === 'string' ? '-' : r.cityId?.cityName || '-') },
+    { key: 'portalUser', label: 'Portal User', render: (r: Vendor) => vendorUsers.find((user) => getRefId(user.vendorId) === r._id)?.username || '-' },
+    { key: 'city', label: 'City', render: (r: Vendor) => getRefName(r.cityId, 'cityName') },
     { key: 'actions', label: 'Actions', render: (r: Vendor) => (
       <div className="flex gap-2">
-        <button onClick={() => { setEditData(r); setForm({ vendorName: r.vendorName, contact: r.contact||'', email: r.email||'', cityId: typeof r.cityId === 'string' ? r.cityId : r.cityId?._id || '', userId: getLinkedUserId(r._id) }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
+        <button onClick={() => { setEditData(r); setForm({ vendorName: r.vendorName, contact: r.contact||'', email: r.email||'', cityId: getRefId(r.cityId), userId: getLinkedUserId(r._id) }); setModalOpen(true); }} className="btn-secondary text-xs px-3 py-1">Edit</button>
         <button onClick={() => setVendorToDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
       </div>
     )},

@@ -8,6 +8,7 @@ import { Users, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import ConfirmModal from '@/components/ConfirmModal';
+import { getRefId, getRefName } from '@/lib/refs';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -76,8 +77,8 @@ export default function UsersPage() {
       email: r.email || '',
       phone: r.phone || '',
       role: r.role,
-      cityId: typeof r.cityId === 'string' ? r.cityId : r.cityId?._id || '',
-      vendorId: typeof r.vendorId === 'string' ? r.vendorId : (r.vendorId as Vendor | undefined)?._id || '',
+      cityId: getRefId(r.cityId),
+      vendorId: getRefId(r.vendorId),
     });
     setModalOpen(true);
   };
@@ -87,11 +88,11 @@ export default function UsersPage() {
     { key: 'name', label: 'Name', render: (r: User) => `${r.firstName || ''} ${r.lastName || ''}`.trim() || '-' },
     { key: 'email', label: 'Email' },
     { key: 'role', label: 'Role', render: (r: User) => <StatusBadge status={r.role} /> },
-    { key: 'city', label: 'City', render: (r: User) => (typeof r.cityId === 'string' ? '-' : r.cityId?.cityName || '-') },
+    { key: 'city', label: 'City', render: (r: User) => getRefName(r.cityId, 'cityName') },
     {
       key: 'vendor', label: 'Assigned Vendor', render: (r: User) => {
         if (r.role !== 'USER') return <span className="text-slate-600 text-xs">—</span>;
-        const name = typeof r.vendorId === 'string' ? r.vendorId : (r.vendorId as Vendor | undefined)?.vendorName;
+        const name = getRefName(r.vendorId, 'vendorName', '');
         return name ? <span className="text-blue-400 text-xs font-mono">{name}</span> : <span className="text-amber-500 text-xs">Not set</span>;
       }
     },

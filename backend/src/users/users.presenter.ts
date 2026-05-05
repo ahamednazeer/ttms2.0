@@ -1,11 +1,13 @@
+import { normalizeRefId } from '../common/utils/mongo-id.util';
+
 type RefValue = { _id?: string; cityName?: string; vendorName?: string; vehicleNo?: string } | string | undefined | null;
 
 function presentRef(value: RefValue, labelKeys: string[] = []) {
   if (!value) return undefined;
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') return normalizeRefId(value);
 
   const result: Record<string, string> = {
-    _id: String(value._id || ''),
+    _id: normalizeRefId(value),
   };
 
   for (const key of labelKeys) {

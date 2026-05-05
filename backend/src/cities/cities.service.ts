@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { City, CityDocument } from './schemas/city.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { Location, LocationDocument } from '../locations/schemas/location.schema';
-import { refIdFilter } from '../common/utils/mongo-id.util';
+import { normalizeRefId, refIdFilter } from '../common/utils/mongo-id.util';
 
 @Injectable()
 export class CitiesService {
@@ -21,7 +21,7 @@ export class CitiesService {
 
     return cities.map((city) => ({
       ...city,
-      locations: locations.filter((location) => String(location.cityId) === String(city._id)),
+      locations: locations.filter((location) => normalizeRefId(location.cityId) === normalizeRefId(city._id)),
     }));
   }
 

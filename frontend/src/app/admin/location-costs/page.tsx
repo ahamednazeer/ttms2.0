@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import { useTheme } from '@/components/ThemeProvider';
 import Modal from '@/components/Modal';
+import { getRefId, getRefName } from '@/lib/refs';
 
 type SavedRoute = LocationCost & { fromName: string; toName: string };
 
@@ -56,33 +57,42 @@ export default function LocationCostsPage() {
 
   useEffect(() => { void fetchData(); }, []);
 
-  const locationsByCity = useMemo(() => {
-    const grouped = new Map<string, Location[]>();
-    for (const location of locations) {
-      const cityId = typeof location.cityId === 'string' ? location.cityId : location.cityId?._id;
-      if (!cityId) continue;
-      const current = grouped.get(cityId) || [];
-      current.push(location);
-      grouped.set(cityId, current);
-    }
-    return grouped;
-  }, [locations]);
+  const cityLocations = useMemo(() => {
+    const byId = new Map<string, Location>();
 
-  const cityLocations = locationsByCity.get(selectedCityId) || [];
+    for (const location of locations) {
+      if (getRefId(location.cityId) === selectedCityId) {
+        byId.set(location._id, location);
+      }
+    }
+
+    for (const cost of costs) {
+      if (getRefId(cost.cityId) !== selectedCityId) continue;
+      for (const ref of [cost.fromLocationId, cost.toLocationId]) {
+        if (ref && typeof ref !== 'string' && ref._id) {
+          byId.set(ref._id, ref);
+        }
+      }
+    }
+
+    return [...byId.values()].sort((left, right) => left.locationName.localeCompare(right.locationName));
+  }, [costs, locations, selectedCityId]);
+
+  const locationNameById = useMemo(
+    () => new Map(cityLocations.map((location) => [location._id, location.locationName])),
+    [cityLocations],
+  );
 
   const savedRoutes: SavedRoute[] = useMemo(() => {
-    const cityRoutes = costs.filter((cost) => {
-      const costCityId = typeof cost.cityId === 'string' ? cost.cityId : cost.cityId?._id;
-      return costCityId === selectedCityId;
-    });
+    const cityRoutes = costs.filter((cost) => getRefId(cost.cityId) === selectedCityId);
     return cityRoutes.map((cost) => {
-      const fromId = typeof cost.fromLocationId === 'string' ? cost.fromLocationId : cost.fromLocationId?._id;
-      const toId = typeof cost.toLocationId === 'string' ? cost.toLocationId : cost.toLocationId?._id;
-      const fromName = locations.find((l) => l._id === fromId)?.locationName || fromId || 'Unknown';
-      const toName = locations.find((l) => l._id === toId)?.locationName || toId || 'Unknown';
+      const fromId = getRefId(cost.fromLocationId);
+      const toId = getRefId(cost.toLocationId);
+      const fromName = getRefName(cost.fromLocationId, 'locationName', locationNameById.get(fromId) || 'Unknown');
+      const toName = getRefName(cost.toLocationId, 'locationName', locationNameById.get(toId) || 'Unknown');
       return { ...cost, fromName, toName };
     });
-  }, [costs, locations, selectedCityId]);
+  }, [costs, locationNameById, selectedCityId]);
 
   // Initialize edit prices when routes change
   useEffect(() => {
@@ -104,13 +114,13 @@ export default function LocationCostsPage() {
     if (addForm.fromLocationId === addForm.toLocationId) {
       toast.error('From and To must be different'); return;
     }
-    if (!addForm.cost || Number.isNaN(cost) || cost < 0) {
-      toast.error('Enter a valid price'); return;
+    if (!addForm.cost || Number.isNaN(cost) || cost <= 0) {
+      toast.error('Enter a price greater than 0'); return;
     }
     // Check duplicate
     const existing = savedRoutes.find((r) => {
-      const fromId = typeof r.fromLocationId === 'string' ? r.fromLocationId : r.fromLocationId?._id;
-      const toId = typeof r.toLocationId === 'string' ? r.toLocationId : r.toLocationId?._id;
+      const fromId = getRefId(r.fromLocationId);
+      const toId = getRefId(r.toLocationId);
       return fromId === addForm.fromLocationId && toId === addForm.toLocationId;
     });
     if (existing) { toast.error('This route already exists'); return; }
@@ -128,15 +138,15 @@ export default function LocationCostsPage() {
 
   const handleUpdatePrice = async (route: SavedRoute) => {
     const cost = Number(editPrices[route._id]);
-    if (!editPrices[route._id] || Number.isNaN(cost) || cost < 0) {
-      toast.error(`Enter a valid price for ${route.fromName} → ${route.toName}`); return;
+    if (!editPrices[route._id] || Number.isNaN(cost) || cost <= 0) {
+      toast.error(`Enter a price greater than 0 for ${route.fromName} to ${route.toName}`); return;
     }
-    const fromId = typeof route.fromLocationId === 'string' ? route.fromLocationId : route.fromLocationId?._id;
-    const toId = typeof route.toLocationId === 'string' ? route.toLocationId : route.toLocationId?._id;
+    const fromId = getRefId(route.fromLocationId);
+    const toId = getRefId(route.toLocationId);
     setSavingKey(route._id);
     try {
       await api.updateLocationCost(route._id, { cityId: selectedCityId, fromLocationId: fromId || '', toLocationId: toId || '', cost });
-      toast.success(`Updated ${route.fromName} → ${route.toName}`);
+      toast.success(`Updated ${route.fromName} to ${route.toName}`);
       await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to update route');
@@ -300,7 +310,7 @@ export default function LocationCostsPage() {
                 <div>
                   <label className="block text-slate-400 text-xs uppercase mb-2 font-mono">Price ($)</label>
                   <input
-                    type="number" step="0.01" min="0"
+                    type="number" step="0.01" min="0.01"
                     value={addForm.cost}
                     onChange={e => setAddForm({ ...addForm, cost: e.target.value })}
                     className="input-modern h-10 w-36" placeholder="0.00" required
@@ -338,7 +348,7 @@ export default function LocationCostsPage() {
                           <td className={tdClass}>{route.toName}</td>
                           <td className="px-4 py-3">
                             <input
-                              type="number" step="0.01" min="0"
+                              type="number" step="0.01" min="0.01"
                               value={editPrices[route._id] ?? ''}
                               onChange={e => setEditPrices(prev => ({ ...prev, [route._id]: e.target.value }))}
                               className="input-modern h-9 min-w-[120px]"

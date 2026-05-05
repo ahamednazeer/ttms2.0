@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { UsersService } from '../users/users.service';
 import { RealtimeService, TicketRealtimeGatewayLike, TicketRealtimePayload } from './realtime.service';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 interface SocketJwtPayload {
   sub: string;
@@ -82,12 +83,12 @@ export class RealtimeGateway
       await client.join(`user:${String(user._id)}`);
       await client.join(`role:${user.role}`);
 
-      const vendorId = this.normalizeRefId(user.vendorId);
+      const vendorId = normalizeRefId(user.vendorId);
       if (vendorId) {
         await client.join(`vendor:${String(vendorId)}`);
       }
 
-      const transportId = this.normalizeRefId(user.transportId);
+      const transportId = normalizeRefId(user.transportId);
       if (transportId) {
         await client.join(`transport:${String(transportId)}`);
       }
@@ -111,11 +112,11 @@ export class RealtimeGateway
     const ticket = payload.ticket;
     const targetedRooms = new Set<string>(['role:SUPERADMIN']);
 
-    const userId = this.normalizeRefId(ticket.userId);
+    const userId = normalizeRefId(ticket.userId);
     const vendorId =
-      this.normalizeRefId(ticket.vendorId) ||
-      this.normalizeRefId(this.getNestedVendorRef(ticket.transportId));
-    const transportId = this.normalizeRefId(ticket.transportId);
+      normalizeRefId(ticket.vendorId) ||
+      normalizeRefId(this.getNestedVendorRef(ticket.transportId));
+    const transportId = normalizeRefId(ticket.transportId);
 
     if (userId) targetedRooms.add(`user:${String(userId)}`);
     if (vendorId) targetedRooms.add(`vendor:${String(vendorId)}`);
@@ -138,12 +139,6 @@ export class RealtimeGateway
     }
 
     return null;
-  }
-
-  private normalizeRefId(value?: { _id?: string } | string) {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    return value._id || '';
   }
 
   private getNestedVendorRef(value?: { vendorId?: { _id?: string } | string } | string) {

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Transport, TransportDocument } from './schemas/transport.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
+import { normalizeRefId } from '../common/utils/mongo-id.util';
 
 @Injectable()
 export class TransportsService {
@@ -22,7 +23,7 @@ export class TransportsService {
   async findOne(id: string, actor?: { role: string; vendorId?: string }) {
     const d = await this.model.findById(id).populate('vendorId cityId');
     if (!d) throw new NotFoundException();
-    if (actor?.role === 'VENDOR' && String((d.vendorId as any)?._id || d.vendorId) !== actor.vendorId) {
+    if (actor?.role === 'VENDOR' && normalizeRefId(d.vendorId) !== actor.vendorId) {
       throw new ForbiddenException('Cannot access transports outside your vendor scope');
     }
     return d;
@@ -64,7 +65,7 @@ export class TransportsService {
   async updateForActor(id: string, data: any, actor: { role: string; vendorId?: string }) {
     const existing = await this.findOne(id, actor);
     if (actor.role === 'VENDOR') {
-      return this.update(id, { ...data, vendorId: String((existing.vendorId as any)?._id || existing.vendorId || actor.vendorId) });
+      return this.update(id, { ...data, vendorId: normalizeRefId(existing.vendorId) || actor.vendorId });
     }
     return this.update(id, data);
   }

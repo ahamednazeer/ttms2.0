@@ -6,6 +6,7 @@ import { Truck, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
 import ConfirmModal from '@/components/ConfirmModal';
+import { getRefId, getRefName } from '@/lib/refs';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -76,7 +77,7 @@ export default function TransportsPage() {
   );
 
   const getLinkedUserId = (transportId: string) =>
-    transportUsers.find((user) => (user.transportId?._id || user.transportId) === transportId)?._id || '';
+    transportUsers.find((user) => getRefId(user.transportId) === transportId)?._id || '';
 
   const handleTransportUserChange = (userId: string) => {
     const selectedUser = transportUsers.find((user) => user._id === userId);
@@ -93,7 +94,7 @@ export default function TransportsPage() {
         userId,
         ownerDetails: fullName || currentForm.ownerDetails,
         contact: selectedUser.phone || currentForm.contact,
-        cityId: selectedUser.cityId?._id || currentForm.cityId,
+        cityId: getRefId(selectedUser.cityId) || currentForm.cityId,
       };
     });
   };
@@ -111,8 +112,8 @@ export default function TransportsPage() {
       type: transport.type || '',
       ownerDetails: transport.ownerDetails || '',
       contact: transport.contact || '',
-      vendorId: transport.vendorId?._id || '',
-      cityId: transport.cityId?._id || '',
+      vendorId: getRefId(transport.vendorId),
+      cityId: getRefId(transport.cityId),
       userId: getLinkedUserId(transport._id),
     });
     setModalOpen(true);
@@ -161,10 +162,10 @@ export default function TransportsPage() {
       key: 'portalUser',
       label: 'Portal User',
       render: (row: any) =>
-        transportUsers.find((user) => (user.transportId?._id || user.transportId) === row._id)?.username || '-',
+        transportUsers.find((user) => getRefId(user.transportId) === row._id)?.username || '-',
     },
-    { key: 'vendor', label: 'Vendor', render: (row: any) => row.vendorId?.vendorName || '-' },
-    { key: 'city', label: 'City', render: (row: any) => row.cityId?.cityName || '-' },
+    { key: 'vendor', label: 'Vendor', render: (row: any) => getRefName(row.vendorId, 'vendorName') },
+    { key: 'city', label: 'City', render: (row: any) => getRefName(row.cityId, 'cityName') },
     {
       key: 'actions',
       label: 'Actions',

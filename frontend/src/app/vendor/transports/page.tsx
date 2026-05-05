@@ -6,6 +6,8 @@ import type { City, Transport } from '@/lib/types';
 import { Truck, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
+import { getRefId, getRefName } from '@/lib/refs';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -33,6 +35,8 @@ export default function VendorTransportsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState<Transport | null>(null);
   const [form, setForm] = useState<VendorTransportForm>(emptyForm);
+  const [transportToDelete, setTransportToDelete] = useState<Transport | null>(null);
+  const [deletingTransport, setDeletingTransport] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -70,14 +74,18 @@ export default function VendorTransportsPage() {
     }
   };
 
-  const handleDelete = async (transport: Transport) => {
-    if (!confirm('Delete this transport?')) return;
+  const handleDelete = async () => {
+    if (!transportToDelete) return;
+    setDeletingTransport(true);
     try {
-      await api.deleteTransport(transport._id);
+      await api.deleteTransport(transportToDelete._id);
       toast.success('Transport deleted');
+      setTransportToDelete(null);
       fetchData();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete transport');
+    } finally {
+      setDeletingTransport(false);
     }
   };
 
@@ -88,7 +96,7 @@ export default function VendorTransportsPage() {
       type: transport.type || '',
       ownerDetails: transport.ownerDetails || '',
       contact: transport.contact || '',
-      cityId: typeof transport.cityId === 'string' ? transport.cityId : transport.cityId?._id || '',
+      cityId: getRefId(transport.cityId),
     });
     setModalOpen(true);
   };
@@ -98,14 +106,14 @@ export default function VendorTransportsPage() {
     { key: 'type', label: 'Type' },
     { key: 'ownerDetails', label: 'Driver' },
     { key: 'contact', label: 'Contact' },
-    { key: 'city', label: 'City', render: (row: Transport) => (typeof row.cityId === 'string' ? '-' : row.cityId?.cityName || '-') },
+    { key: 'city', label: 'City', render: (row: Transport) => getRefName(row.cityId, 'cityName') },
     {
       key: 'actions',
       label: 'Actions',
       render: (row: Transport) => (
         <div className="flex gap-2">
           <button onClick={() => openEditModal(row)} className="btn-secondary text-xs px-3 py-1">Edit</button>
-          <button onClick={() => handleDelete(row)} className="btn-danger text-xs px-3 py-1">Delete</button>
+          <button onClick={() => setTransportToDelete(row)} className="btn-danger text-xs px-3 py-1">Delete</button>
         </div>
       ),
     },
@@ -176,6 +184,15 @@ export default function VendorTransportsPage() {
           </div>
         </form>
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(transportToDelete)}
+        title="Delete Transport"
+        message={`Delete transport ${transportToDelete?.vehicleNo || 'record'}?`}
+        confirmLabel="Delete"
+        loading={deletingTransport}
+        onCancel={() => setTransportToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }
