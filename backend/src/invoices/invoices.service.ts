@@ -11,6 +11,7 @@ import { Response } from 'express';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { normalizeRefId } from '../common/utils/mongo-id.util';
+import { getPagination, paginatedResult, PaginationQuery } from '../common/utils/pagination.util';
 
 interface InvoiceLineItem {
   sNo: number;
@@ -43,9 +44,14 @@ export class InvoicesService {
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAll() {
+  async findAll(query?: PaginationQuery) {
     await this.syncInvoicesFromCompletedTickets();
-    return this.populateInvoiceQuery(this.model.find()).sort({ generatedAt: -1 }).exec();
+    const { page, limit, skip } = getPagination(query);
+    const [invoices, total] = await Promise.all([
+      this.populateInvoiceQuery(this.model.find()).sort({ generatedAt: -1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(),
+    ]);
+    return paginatedResult(invoices, total, page, limit);
   }
 
   async generate(vendorId: string, month: number, year: number) {

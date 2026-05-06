@@ -17,53 +17,42 @@ import type {
   Vendor,
 } from './types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || API_URL;
+
+type PaginatedResponse<T> = {
+  data: T[];
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 
 class ApiClient {
-  private token: string | null = null;
+  getToken() { return null; }
+  setToken(_token: string) {}
+  clearToken() { void this.logout().catch(() => undefined); }
 
-  setToken(token: string) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', token);
-    }
+  private unwrapList<T>(payload: T[] | PaginatedResponse<T>): T[] {
+    return Array.isArray(payload) ? payload : payload.data || [];
   }
 
-  getToken() {
-    if (!this.token && typeof window !== 'undefined') {
-      this.token = localStorage.getItem('token');
-    }
-    return this.token;
-  }
-
-  clearToken() {
-    this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-    }
-  }
-
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const token = this.getToken();
+  private async request(endpoint: string, options: RequestInit = {}, baseUrl = API_URL) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers,
+      credentials: 'include',
       cache: 'no-store',
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      if (response.status === 401 && endpoint !== '/auth/sign-in') {
-        this.clearToken();
-      }
 
       const message =
         response.status === 429
@@ -80,35 +69,37 @@ class ApiClient {
 
   // ============ Auth ============
   async login(username: string, password: string) {
-    const data = await this.request('/auth/sign-in', {
+    return this.request('/auth/sign-in', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
-    });
-    this.setToken(data.token);
-    return data;
+    }, AUTH_URL);
+  }
+
+  async logout() {
+    await this.request('/auth/sign-out', { method: 'POST' }, AUTH_URL).catch(() => null);
   }
 
   async getMe() {
-    return this.request('/auth/me');
+    return this.request('/auth/me', {}, AUTH_URL);
   }
 
   async requestPasswordReset(identifier: string) {
     return this.request('/auth/request-password-reset', {
       method: 'POST',
       body: JSON.stringify({ identifier }),
-    });
+    }, AUTH_URL);
   }
 
   async resetPassword(token: string, password: string) {
     return this.request('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ token, password }),
-    });
+    }, AUTH_URL);
   }
 
   // ============ Cities ============
   async getCities(): Promise<City[]> {
-    return this.request('/city');
+    return this.unwrapList(await this.request('/city'));
   }
 
   async createCity(data: CreateCityInput): Promise<City> {
@@ -132,7 +123,7 @@ class ApiClient {
   // ============ Locations ============
   async getLocations(cityId?: string): Promise<Location[]> {
     const query = cityId ? `?cityId=${encodeURIComponent(cityId)}` : '';
-    return this.request(`/location${query}`);
+    return this.unwrapList(await this.request(`/location${query}`));
   }
 
   async createLocation(data: { locationName: string; cityId: string }): Promise<Location> {
@@ -155,11 +146,11 @@ class ApiClient {
 
   // ============ Location Costs ============
   async getLocationCosts(): Promise<LocationCost[]> {
-    return this.request('/locationcost');
+    return this.unwrapList(await this.request('/locationcost'));
   }
 
   async getLocationCostsByCity(cityId: string): Promise<LocationCost[]> {
-    return this.request(`/locationcost/city/${cityId}`);
+    return this.unwrapList(await this.request(`/locationcost/city/${cityId}`));
   }
 
   async createLocationCost(data: CreateLocationCostInput): Promise<LocationCost> {
@@ -189,17 +180,16 @@ class ApiClient {
   }
 
   private async uploadLocationCostsFile(endpoint: string, file: File) {
-    const token = this.getToken();
     const formData = new FormData();
     formData.append('file', file);
 
     const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData,
+      credentials: 'include',
       cache: 'no-store',
     });
 
@@ -217,7 +207,7 @@ class ApiClient {
 
   // ============ Vendors ============
   async getVendors(): Promise<Vendor[]> {
-    return this.request('/vendor');
+    return this.unwrapList(await this.request('/vendor'));
   }
 
   async createVendor(data: CreateVendorInput): Promise<Vendor> {
@@ -240,7 +230,7 @@ class ApiClient {
 
   // ============ Users ============
   async getUsers(): Promise<User[]> {
-    return this.request('/user');
+    return this.unwrapList(await this.request('/user'));
   }
 
   async createUser(data: CreateUserInput): Promise<User> {
@@ -262,14 +252,14 @@ class ApiClient {
   }
 
   // ============ Audit Logs ============
-  async getAuditLogs(params?: Record<string, string>) {
+  async getAuditLogs(params?: Record<string, string>): Promise<any[]> {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request(`/audit${query}`);
+    return this.unwrapList(await this.request(`/audit${query}`));
   }
 
   // ============ Transports ============
   async getTransports(): Promise<Transport[]> {
-    return this.request('/transport');
+    return this.unwrapList(await this.request('/transport'));
   }
 
   async createTransport(data: CreateTransportInput): Promise<Transport> {
@@ -293,7 +283,7 @@ class ApiClient {
   // ============ Tickets ============
   async getTickets(params?: Record<string, string>): Promise<Ticket[]> {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request(`/ride-ticket${query}`);
+    return this.unwrapList(await this.request(`/ride-ticket${query}`));
   }
 
   async getTicket(id: string): Promise<Ticket> {
@@ -327,10 +317,14 @@ class ApiClient {
     });
   }
 
+  async deleteTicket(ticketId: string) {
+    return this.request(`/ride-ticket/${ticketId}`, { method: 'DELETE' });
+  }
+
   // ============ Invoices ============
-  async getInvoices(params?: Record<string, string>) {
+  async getInvoices(params?: Record<string, string>): Promise<any[]> {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request(`/invoice${query}`);
+    return this.unwrapList(await this.request(`/invoice${query}`));
   }
 
   async generateInvoice(vendorId: string, month: number, year: number) {
@@ -356,11 +350,9 @@ class ApiClient {
   }
 
   async downloadInvoice(invoiceId: string): Promise<Blob> {
-    const token = this.getToken();
     const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_URL}/invoice/${invoiceId}/download`, { headers });
+    const response = await fetch(`${API_URL}/invoice/${invoiceId}/download`, { headers, credentials: 'include' });
     if (!response.ok) throw new Error('Download failed');
     return response.blob();
   }

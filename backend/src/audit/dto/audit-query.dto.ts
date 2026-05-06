@@ -1,6 +1,7 @@
 import { IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
-export class AuditQueryDto {
+export class AuditQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   action?: string;

@@ -5,6 +5,7 @@ import { Transport, TransportDocument } from './schemas/transport.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { normalizeRefId } from '../common/utils/mongo-id.util';
+import { getPagination, paginatedResult, PaginationQuery } from '../common/utils/pagination.util';
 
 @Injectable()
 export class TransportsService {
@@ -12,13 +13,18 @@ export class TransportsService {
     @InjectModel(Transport.name) private model: Model<TransportDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
-  async findAll(actor?: { role: string; vendorId?: string }) {
+  async findAll(actor?: { role: string; vendorId?: string }, query?: PaginationQuery) {
     const filter: Record<string, unknown> = {};
+    const { page, limit, skip } = getPagination(query);
     if (actor?.role === 'VENDOR') {
-      if (!actor.vendorId) return [];
+      if (!actor.vendorId) return paginatedResult([], 0, page, limit);
       filter.vendorId = actor.vendorId;
     }
-    return this.model.find(filter).populate('vendorId cityId').exec();
+    const [transports, total] = await Promise.all([
+      this.model.find(filter).populate('vendorId cityId').sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(filter),
+    ]);
+    return paginatedResult(transports, total, page, limit);
   }
   async findOne(id: string, actor?: { role: string; vendorId?: string }) {
     const d = await this.model.findById(id).populate('vendorId cityId');

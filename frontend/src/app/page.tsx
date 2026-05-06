@@ -18,11 +18,6 @@ export default function LoginPage() {
   useEffect(() => {
     async function checkExistingAuth() {
       try {
-        const token = api.getToken();
-        if (!token) {
-          setCheckingAuth(false);
-          return;
-        }
         const userData = await api.getMe();
         const roleRoutes: Record<string, string> = {
           SUPERADMIN: '/admin',
@@ -33,7 +28,6 @@ export default function LoginPage() {
         const route = roleRoutes[userData.role?.toUpperCase()] || '/citizen';
         router.replace(route);
       } catch {
-        api.clearToken();
         setCheckingAuth(false);
       }
     }

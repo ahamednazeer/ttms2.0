@@ -6,17 +6,20 @@ describe('TicketsService security', () => {
     const queryChain = {
       populate: jest.fn().mockReturnThis(),
       sort: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       exec: jest.fn(),
     };
 
     const ticketModel = {
       find: jest.fn().mockReturnValue(queryChain),
       findById: jest.fn(),
-      countDocuments: jest.fn(),
+      findByIdAndDelete: jest.fn(),
+      countDocuments: jest.fn().mockResolvedValue(0),
     };
 
     const transportModel = {
-      findById: jest.fn(),
+      findById: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) }),
     };
 
     const locationModel = {
@@ -24,7 +27,7 @@ describe('TicketsService security', () => {
     };
 
     const vendorModel = {
-      findById: jest.fn(),
+      findById: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) }),
       find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
 

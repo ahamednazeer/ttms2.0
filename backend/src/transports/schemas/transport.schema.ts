@@ -14,3 +14,6 @@ export class Transport {
 }
 export const TransportSchema = SchemaFactory.createForClass(Transport);
 TransportSchema.index({ vehicleNo: 1 }, { unique: true });
+TransportSchema.index({ vendorId: 1, active: 1 });
+TransportSchema.index({ cityId: 1, active: 1 });
+TransportSchema.index({ createdAt: -1 });

@@ -14,3 +14,6 @@ export class Invoice {
   @Prop() adminRemarks: string;
 }
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
+InvoiceSchema.index({ generatedAt: -1 });
+InvoiceSchema.index({ vendorId: 1, month: 1, year: 1 }, { unique: true });
+InvoiceSchema.index({ status: 1, generatedAt: -1 });

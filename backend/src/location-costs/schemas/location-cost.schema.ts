@@ -12,3 +12,5 @@ export class LocationCost {
 }
 export const LocationCostSchema = SchemaFactory.createForClass(LocationCost);
 LocationCostSchema.index({ cityId: 1, fromLocationId: 1, toLocationId: 1 }, { unique: true });
+LocationCostSchema.index({ fromLocationId: 1, toLocationId: 1 });
+LocationCostSchema.index({ cityId: 1, updatedAt: -1 });

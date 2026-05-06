@@ -15,17 +15,19 @@ export class AuthService {
     private jwtService: JwtService,
     private notificationsService: NotificationsService,
   ) {
-    this.seedDefaultUsers();
+    if (process.env.SEED_DEFAULT_USERS === 'true') {
+      void this.seedDefaultUsers();
+    }
   }
 
   private async seedDefaultUsers() {
     const count = await this.userModel.countDocuments();
     if (count === 0) {
+      if (!process.env.DEFAULT_ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD.length < 12) {
+        throw new Error('DEFAULT_ADMIN_PASSWORD must be set to at least 12 characters when SEED_DEFAULT_USERS=true');
+      }
       const users = [
-        { username: 'admin', password: await bcrypt.hash('admin123', 10), role: 'SUPERADMIN', firstName: 'Super', lastName: 'Admin', email: 'admin@ttms.gov' },
-        { username: 'vendor1', password: await bcrypt.hash('vendor123', 10), role: 'VENDOR', firstName: 'John', lastName: 'Vendor', email: 'vendor@ttms.gov' },
-        { username: 'driver1', password: await bcrypt.hash('driver123', 10), role: 'TRANSPORT', firstName: 'Mike', lastName: 'Driver', email: 'driver@ttms.gov' },
-        { username: 'user1', password: await bcrypt.hash('user123', 10), role: 'USER', firstName: 'Jane', lastName: 'Citizen', email: 'user@ttms.gov' },
+        { username: 'admin', password: await bcrypt.hash(process.env.DEFAULT_ADMIN_PASSWORD, 10), role: 'SUPERADMIN', firstName: 'Super', lastName: 'Admin', email: 'admin@ttms.gov' },
       ];
       await this.userModel.insertMany(users);
       console.log('✅ Default users seeded');

@@ -181,9 +181,9 @@ export default function DashboardLayout({
     checkAuth();
   }, [pathname, propRole, propName, propEmail, router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     realtimeClient.disconnect();
-    api.clearToken();
+    await api.logout();
     router.push('/');
   };
 

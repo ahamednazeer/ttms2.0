@@ -50,3 +50,8 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ email: 1 }, { unique: true, sparse: true });
+UserSchema.index({ role: 1, active: 1 });
+UserSchema.index({ vendorId: 1, role: 1, active: 1 });
+UserSchema.index({ transportId: 1, role: 1, active: 1 });
+UserSchema.index({ cityId: 1, role: 1, active: 1 });
+UserSchema.index({ createdAt: -1 });

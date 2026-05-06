@@ -43,3 +43,8 @@ export class AuditLog {
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
+AuditLogSchema.index({ createdAt: -1 });
+AuditLogSchema.index({ action: 1, createdAt: -1 });
+AuditLogSchema.index({ status: 1, createdAt: -1 });
+AuditLogSchema.index({ actorId: 1, createdAt: -1 });
+AuditLogSchema.index({ actorUsername: 1, createdAt: -1 });

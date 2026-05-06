@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { VendorsService } from './vendors.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
@@ -8,12 +8,13 @@ import { AuditAction } from '../audit/audit.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 @Controller('vendor')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPERADMIN')
 export class VendorsController {
   constructor(private svc: VendorsService) {}
-  @Get() findAll() { return this.svc.findAll(); }
+  @Get() findAll(@Query() query: PaginationQueryDto) { return this.svc.findAll(undefined, query); }
   @Get(':id') findOne(@Param('id', ParseObjectIdPipe) id: string) { return this.svc.findOne(id); }
   @Post()
   @AuditAction('VENDOR_CREATE')

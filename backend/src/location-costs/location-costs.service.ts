@@ -7,6 +7,7 @@ import { Location, LocationDocument } from '../locations/schemas/location.schema
 import { LocationCost, LocationCostDocument } from './schemas/location-cost.schema';
 import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { refIdFilter } from '../common/utils/mongo-id.util';
+import { getPagination, paginatedResult, PaginationQuery } from '../common/utils/pagination.util';
 
 type ImportHeader = 'pickup' | 'dropoff' | 'amount' | 'city';
 
@@ -61,8 +62,23 @@ export class LocationCostsService {
     @InjectModel(City.name) private cityModel: Model<CityDocument>,
     @InjectModel(Location.name) private locationModel: Model<LocationDocument>,
   ) {}
-  async findAll() { return this.model.find().populate('fromLocationId toLocationId cityId').exec(); }
-  async findByCity(cityId: string) { return this.model.find(refIdFilter('cityId', cityId)).populate('fromLocationId toLocationId cityId').exec(); }
+  async findAll(query?: PaginationQuery) {
+    const { page, limit, skip } = getPagination(query);
+    const [costs, total] = await Promise.all([
+      this.model.find().populate('fromLocationId toLocationId cityId').sort({ cityId: 1, fromLocationId: 1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(),
+    ]);
+    return paginatedResult(costs, total, page, limit);
+  }
+  async findByCity(cityId: string, query?: PaginationQuery) {
+    const filter = refIdFilter('cityId', cityId);
+    const { page, limit, skip } = getPagination(query);
+    const [costs, total] = await Promise.all([
+      this.model.find(filter).populate('fromLocationId toLocationId cityId').sort({ fromLocationId: 1, toLocationId: 1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(filter),
+    ]);
+    return paginatedResult(costs, total, page, limit);
+  }
   async create(data: any) {
     if (data.fromLocationId === data.toLocationId) {
       throw new BadRequestException('From and to locations must be different');

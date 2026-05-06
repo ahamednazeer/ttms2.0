@@ -7,24 +7,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export interface TicketUpdatedEvent {
   ticketId: string;
   status: string;
-  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated';
+  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated' | 'deleted';
   ticket: unknown;
 }
 
 class RealtimeClient {
   private socket: Socket | null = null;
-  private activeToken: string | null = null;
 
   connect() {
     if (typeof window === 'undefined') return null;
 
-    const token = window.localStorage.getItem('token');
-    if (!token) {
-      this.disconnect();
-      return null;
-    }
-
-    if (this.socket && this.activeToken === token) {
+    if (this.socket) {
       if (!this.socket.connected) {
         this.socket.connect();
       }
@@ -33,15 +26,14 @@ class RealtimeClient {
 
     this.disconnect();
 
-    this.activeToken = token;
     this.socket = io(`${API_URL}/realtime`, {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      auth: { token },
+      reconnectionDelayMax: 30000,
+      withCredentials: true,
     });
 
     return this.socket;
@@ -52,7 +44,6 @@ class RealtimeClient {
       this.socket.disconnect();
       this.socket = null;
     }
-    this.activeToken = null;
   }
 }
 

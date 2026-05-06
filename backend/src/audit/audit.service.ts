@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuditLog, AuditLogDocument } from './schemas/audit-log.schema';
+import { getPagination, paginatedResult } from '../common/utils/pagination.util';
 
 export interface AuditLogInput {
   action: string;
@@ -31,8 +32,11 @@ export class AuditService {
     actorUsername?: string;
     dateFrom?: string;
     dateTo?: string;
+    page?: number;
+    limit?: number;
   }) {
     const filter: Record<string, unknown> = {};
+    const { page, limit, skip } = getPagination(query);
 
     if (query?.action) filter.action = query.action;
     if (query?.status) filter.status = query.status;
@@ -52,7 +56,11 @@ export class AuditService {
       }
     }
 
-    return this.model.find(filter).sort({ createdAt: -1 }).limit(500).lean().exec();
+    const [logs, total] = await Promise.all([
+      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean().exec(),
+      this.model.countDocuments(filter),
+    ]);
+    return paginatedResult(logs, total, page, limit);
   }
 
   async log(entry: AuditLogInput) {

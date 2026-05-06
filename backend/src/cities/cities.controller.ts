@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { CitiesService } from './cities.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
@@ -8,6 +8,7 @@ import { AuditAction } from '../audit/audit.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('city')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,7 +16,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 export class CitiesController {
   constructor(private citiesService: CitiesService) {}
 
-  @Get() findAll() { return this.citiesService.findAll(); }
+  @Get() findAll(@Query() query: PaginationQueryDto) { return this.citiesService.findAll(query); }
   @Get(':id') findOne(@Param('id', ParseObjectIdPipe) id: string) { return this.citiesService.findOne(id); }
   @Post()
   @AuditAction('CITY_CREATE')

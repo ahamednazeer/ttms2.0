@@ -11,6 +11,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -31,10 +32,10 @@ export class LocationsController {
 
   @Get()
   @Roles('SUPERADMIN', 'VENDOR', 'TRANSPORT', 'USER')
-  async findAll(@Request() req: AuthenticatedRequest, @Query('cityId') queryCityId?: string) {
+  async findAll(@Request() req: AuthenticatedRequest, @Query() query: PaginationQueryDto & { cityId?: string }) {
     if (req.user.role === 'USER') {
       if (req.user.cityId) {
-        return this.svc.findAll(req.user.cityId);
+        return this.svc.findAll(req.user.cityId, query);
       }
 
       const user = await this.userModel.findById(req.user.sub).select('cityId vendorId').populate('vendorId').lean() as any;
@@ -43,9 +44,9 @@ export class LocationsController {
         : user?.vendorId?.cityId
           ? String(user.vendorId.cityId)
           : undefined;
-      return this.svc.findAll(cityId);
+      return this.svc.findAll(cityId, query);
     }
-    return this.svc.findAll(queryCityId);
+    return this.svc.findAll(query.cityId, query);
   }
 
   @Get(':id')

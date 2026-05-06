@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Response } from 'express';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('invoice')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -13,7 +14,7 @@ export class InvoicesController {
   constructor(private svc: InvoicesService) {}
 
   @Get()
-  findAll() { return this.svc.findAll(); }
+  findAll(@Query() query: PaginationQueryDto) { return this.svc.findAll(query); }
 
   @Post('generate')
   generate(@Body() body: { vendorId: string; month: number; year: number }) {

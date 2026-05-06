@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, UseInterceptors, Res, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditAction } from '../audit/audit.decorator';
@@ -6,6 +6,8 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 import { Throttle } from '@nestjs/throttler';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import type { Response } from 'express';
+import { clearAuthCookie, setAuthCookie } from './auth-cookie.util';
 
 @Controller('auth')
 export class AuthController {
@@ -15,8 +17,18 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @AuditAction('AUTH_SIGN_IN')
   @UseInterceptors(AuditInterceptor)
-  async signIn(@Body() body: { username: string; password: string }) {
-    return this.authService.signIn(body.username, body.password);
+  async signIn(@Body() body: { username: string; password: string }, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.signIn(body.username, body.password);
+    setAuthCookie(res, result.token);
+    return {
+      user: result.user,
+    };
+  }
+
+  @Post('sign-out')
+  @HttpCode(204)
+  signOut(@Res({ passthrough: true }) res: Response) {
+    clearAuthCookie(res);
   }
 
   @Post('request-password-reset')

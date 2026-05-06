@@ -19,3 +19,10 @@ export class Ticket {
   @Prop() userName: string;
 }
 export const TicketSchema = SchemaFactory.createForClass(Ticket);
+TicketSchema.index({ createdAt: -1 });
+TicketSchema.index({ status: 1, createdAt: -1 });
+TicketSchema.index({ userId: 1, createdAt: -1 });
+TicketSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
+TicketSchema.index({ transportId: 1, status: 1, createdAt: -1 });
+TicketSchema.index({ cityId: 1, status: 1, vendorId: 1, createdAt: -1 });
+TicketSchema.index({ vendorId: 1, status: 1, rideEndTime: 1 });

@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { getJwtSecret } from './auth-cookie.util';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'ttms-secret'),
+        secret: getJwtSecret(config.get<string>('JWT_SECRET')),
         signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
       }),
       inject: [ConfigService],

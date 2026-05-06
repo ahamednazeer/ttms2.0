@@ -7,6 +7,7 @@ import { useTicketRealtime } from '@/hooks/useTicketRealtime';
 import { Ticket } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CrudPageSkeleton } from '@/components/Skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const DataTable = dynamic(() => import('@/components/DataTable'), { ssr: false }) as any;
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
@@ -19,6 +20,8 @@ export default function TicketsPage() {
   const [viewModal, setViewModal] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [assignTransportId, setAssignTransportId] = useState('');
+  const [ticketToDelete, setTicketToDelete] = useState<any>(null);
+  const [deletingTicket, setDeletingTicket] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -49,6 +52,31 @@ export default function TicketsPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const handleDelete = async () => {
+    if (!ticketToDelete) return;
+    setDeletingTicket(true);
+    try {
+      await api.deleteTicket(ticketToDelete._id);
+      toast.success('Journey request deleted');
+      setTicketToDelete(null);
+      setViewModal(false);
+      setAssignModal(false);
+      setSelected(null);
+      await fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete journey request');
+    } finally {
+      setDeletingTicket(false);
+    }
+  };
+
+  const getTicketLabel = (ticket: any) => {
+    const user = ticket?.userId?.firstName || ticket?.userName || 'this user';
+    const pickup = ticket?.pickupLocationId?.locationName;
+    const drop = ticket?.dropLocationId?.locationName;
+    return pickup && drop ? `${user}'s request from ${pickup} to ${drop}` : `${user}'s request`;
+  };
+
   const columns = [
     { key: 'userName', label: 'User', render: (r: any) => r.userId?.firstName || r.userName || '-' },
     { key: 'pickup', label: 'Pickup', render: (r: any) => r.pickupLocationId?.locationName || '-' },
@@ -62,6 +90,7 @@ export default function TicketsPage() {
       <div className="flex gap-2">
         <button onClick={() => { setSelected(r); setViewModal(true); }} className="btn-secondary text-xs px-3 py-1">View</button>
         {r.status === 'PENDING' && <button onClick={() => { setSelected(r); setAssignTransportId(''); setAssignModal(true); }} className="btn-primary text-xs px-3 py-1">Assign</button>}
+        <button onClick={() => setTicketToDelete(r)} className="btn-danger text-xs px-3 py-1">Delete</button>
       </div>
     )},
   ];
@@ -115,6 +144,15 @@ export default function TicketsPage() {
           </div>
         )}
       </Modal>
+      <ConfirmModal
+        isOpen={Boolean(ticketToDelete)}
+        title="Delete Journey Request"
+        message={`Delete ${getTicketLabel(ticketToDelete)}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        loading={deletingTicket}
+        onCancel={() => setTicketToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

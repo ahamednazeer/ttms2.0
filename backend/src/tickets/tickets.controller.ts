@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -93,5 +94,13 @@ export class TicketsController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.svc.completeRide(id, body.otp, req.user);
+  }
+
+  @Delete(':id')
+  @Roles('SUPERADMIN')
+  @AuditAction('TICKET_DELETE')
+  @UseInterceptors(AuditInterceptor)
+  delete(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.svc.delete(id);
   }
 }

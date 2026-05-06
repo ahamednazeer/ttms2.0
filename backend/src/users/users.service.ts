@@ -7,6 +7,7 @@ import { throwIfDuplicateKey } from '../common/utils/mongo-exception.util';
 import { presentUser } from './users.presenter';
 import { NotificationsService } from '../notifications/notifications.service';
 import { normalizeRefId } from '../common/utils/mongo-id.util';
+import { getPagination, paginatedResult, PaginationQuery } from '../common/utils/pagination.util';
 
 @Injectable()
 export class UsersService {
@@ -15,9 +16,13 @@ export class UsersService {
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAll() {
-    const users = await this.model.find().select('-password').populate('cityId vendorId transportId').exec();
-    return users.map((user) => presentUser(user.toObject()));
+  async findAll(query?: PaginationQuery) {
+    const { page, limit, skip } = getPagination(query);
+    const [users, total] = await Promise.all([
+      this.model.find().select('-password').populate('cityId vendorId transportId').sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(),
+    ]);
+    return paginatedResult(users.map((user) => presentUser(user.toObject())), total, page, limit);
   }
 
   async findOne(id: string) {

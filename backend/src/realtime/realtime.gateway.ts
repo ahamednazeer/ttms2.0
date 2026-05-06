@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { UsersService } from '../users/users.service';
 import { RealtimeService, TicketRealtimeGatewayLike, TicketRealtimePayload } from './realtime.service';
 import { normalizeRefId } from '../common/utils/mongo-id.util';
+import { AUTH_COOKIE_NAME } from '../auth/auth-cookie.util';
 
 interface SocketJwtPayload {
   sub: string;
@@ -44,7 +45,10 @@ type RealtimeServer = Server<Record<string, never>, ServerToClientEvents, Record
 @WebSocketGateway({
   namespace: '/realtime',
   cors: {
-    origin: true,
+    origin: (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || process.env.APP_BASE_URL || 'http://localhost:3000')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     credentials: true,
   },
 })
@@ -136,6 +140,17 @@ export class RealtimeGateway
     const authorizationHeader = client.handshake.headers.authorization;
     if (typeof authorizationHeader === 'string' && authorizationHeader.startsWith('Bearer ')) {
       return authorizationHeader.slice(7);
+    }
+
+    const cookieHeader = client.handshake.headers.cookie;
+    if (typeof cookieHeader === 'string') {
+      const authCookie = cookieHeader
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .find((cookie) => cookie.startsWith(`${AUTH_COOKIE_NAME}=`));
+      if (authCookie) {
+        return decodeURIComponent(authCookie.slice(AUTH_COOKIE_NAME.length + 1));
+      }
     }
 
     return null;

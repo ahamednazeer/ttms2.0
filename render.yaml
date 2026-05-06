@@ -11,5 +11,13 @@ services:
         value: production
       - key: PORT
         value: 8000
-
-
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: AUTH_HOSTS
+        sync: false
+      - key: API_HOSTS
+        sync: false

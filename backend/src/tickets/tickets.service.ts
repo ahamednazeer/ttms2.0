@@ -10,6 +10,7 @@ import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import { normalizeRefId } from '../common/utils/mongo-id.util';
+import { getPagination, paginatedResult } from '../common/utils/pagination.util';
 
 interface ActorContext {
   sub: string;
@@ -40,11 +41,12 @@ export class TicketsService {
     if (query?.cityId) filter.cityId = query.cityId;
     if (query?.vendorId) filter.vendorId = query.vendorId;
     if (query?.userId) filter.userId = query.userId;
+    const { page, limit, skip } = getPagination(query);
 
     if (actor) {
       if (actor.role === 'USER') filter.userId = actor.sub;
       if (actor.role === 'VENDOR') {
-        if (!actor.vendorId) return [];
+        if (!actor.vendorId) return paginatedResult([], 0, page, limit);
         const vendor = await this.vendorModel.findById(actor.vendorId).select('cityId').lean();
         const vendorCityId = vendor?.cityId ? String(vendor.cityId) : actor.cityId;
         if (!vendorCityId) {
@@ -53,7 +55,7 @@ export class TicketsService {
           const baseFilter = { ...filter };
           delete baseFilter.vendorId;
           delete baseFilter.cityId;
-          return this.model.find({
+          const scopedFilter = {
             ...baseFilter,
             $or: [
               { vendorId: actor.vendorId },
@@ -61,16 +63,25 @@ export class TicketsService {
               { status: 'PENDING', cityId: vendorCityId, vendorId: { $exists: false } },
               { status: 'PENDING', cityId: vendorCityId, vendorId: null },
             ],
-          }).populate(this.populateFields).sort({ createdAt: -1 }).exec();
+          };
+          const [tickets, total] = await Promise.all([
+            this.model.find(scopedFilter).populate(this.populateFields).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+            this.model.countDocuments(scopedFilter),
+          ]);
+          return paginatedResult(tickets, total, page, limit);
         }
       }
       if (actor.role === 'TRANSPORT') {
-        if (!actor.transportId) return [];
+        if (!actor.transportId) return paginatedResult([], 0, page, limit);
         filter.transportId = actor.transportId;
       }
     }
 
-    return this.model.find(filter).populate(this.populateFields).sort({ createdAt: -1 }).exec();
+    const [tickets, total] = await Promise.all([
+      this.model.find(filter).populate(this.populateFields).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      this.model.countDocuments(filter),
+    ]);
+    return paginatedResult(tickets, total, page, limit);
   }
 
   async findOne(id: string, actor?: ActorContext) {
@@ -177,8 +188,6 @@ export class TicketsService {
     const saved = await ticket.save();
     const populated = await saved.populate(this.populateFields);
 
-    console.log(`OTP for ticket ${ticketId}: ${otp}`);
-
     this.emitTicketUpdate(populated, 'started');
     this.dispatchNotification(() => this.notifyRideStarted(populated));
     return populated;
@@ -203,6 +212,15 @@ export class TicketsService {
     this.emitTicketUpdate(populated, 'completed');
     this.dispatchNotification(() => this.notifyRideCompleted(populated));
     return populated;
+  }
+
+  async delete(id: string) {
+    const ticket = await this.model.findById(id).populate(this.populateFields);
+    if (!ticket) throw new NotFoundException('Ticket not found');
+
+    await this.model.findByIdAndDelete(id);
+    this.emitTicketUpdate(ticket, 'deleted');
+    return { deleted: true };
   }
 
   async count(filter?: any) {
@@ -236,7 +254,7 @@ export class TicketsService {
     }).populate(this.populateFields).exec();
   }
 
-  private emitTicketUpdate(ticket: any, action: 'created' | 'assigned' | 'started' | 'completed' | 'updated') {
+  private emitTicketUpdate(ticket: any, action: 'created' | 'assigned' | 'started' | 'completed' | 'updated' | 'deleted') {
     this.realtimeService.emitTicketUpdate({
       ticketId: String(ticket._id),
       status: ticket.status,

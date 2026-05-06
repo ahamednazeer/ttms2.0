@@ -13,3 +13,5 @@ export class Vendor {
 export const VendorSchema = SchemaFactory.createForClass(Vendor);
 VendorSchema.index({ vendorName: 1 }, { unique: true });
 VendorSchema.index({ email: 1 }, { unique: true, sparse: true });
+VendorSchema.index({ cityId: 1, active: 1 });
+VendorSchema.index({ createdAt: -1 });

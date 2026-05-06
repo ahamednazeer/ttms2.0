@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { TransportsService } from './transports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
@@ -8,6 +8,7 @@ import { AuditAction } from '../audit/audit.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -21,7 +22,7 @@ export class TransportsController {
   constructor(private svc: TransportsService) {}
   @Get()
   @Roles('SUPERADMIN', 'VENDOR')
-  findAll(@Request() req: AuthenticatedRequest) { return this.svc.findAll(req.user); }
+  findAll(@Request() req: AuthenticatedRequest, @Query() query: PaginationQueryDto) { return this.svc.findAll(req.user, query); }
   @Get(':id')
   @Roles('SUPERADMIN', 'VENDOR')
   findOne(@Param('id', ParseObjectIdPipe) id: string, @Request() req: AuthenticatedRequest) { return this.svc.findOne(id, req.user); }

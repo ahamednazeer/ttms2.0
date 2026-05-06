@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LocationCostsService } from './location-costs.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -9,14 +9,15 @@ import { AuditAction } from '../audit/audit.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('locationcost')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPERADMIN')
 export class LocationCostsController {
   constructor(private svc: LocationCostsService) {}
-  @Get() findAll() { return this.svc.findAll(); }
-  @Get('city/:cityId') findByCity(@Param('cityId', ParseObjectIdPipe) cityId: string) { return this.svc.findByCity(cityId); }
+  @Get() findAll(@Query() query: PaginationQueryDto) { return this.svc.findAll(query); }
+  @Get('city/:cityId') findByCity(@Param('cityId', ParseObjectIdPipe) cityId: string, @Query() query: PaginationQueryDto) { return this.svc.findByCity(cityId, query); }
   @Post()
   @AuditAction('LOCATION_COST_CREATE')
   @UseInterceptors(AuditInterceptor)
