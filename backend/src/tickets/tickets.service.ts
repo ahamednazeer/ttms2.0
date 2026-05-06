@@ -205,6 +205,15 @@ export class TicketsService {
     return populated;
   }
 
+  async delete(id: string) {
+    const ticket = await this.model.findById(id).populate(this.populateFields);
+    if (!ticket) throw new NotFoundException('Ticket not found');
+
+    await this.model.findByIdAndDelete(id);
+    this.emitTicketUpdate(ticket, 'deleted');
+    return { deleted: true };
+  }
+
   async count(filter?: any) {
     return this.model.countDocuments(filter || {});
   }
@@ -236,7 +245,7 @@ export class TicketsService {
     }).populate(this.populateFields).exec();
   }
 
-  private emitTicketUpdate(ticket: any, action: 'created' | 'assigned' | 'started' | 'completed' | 'updated') {
+  private emitTicketUpdate(ticket: any, action: 'created' | 'assigned' | 'started' | 'completed' | 'updated' | 'deleted') {
     this.realtimeService.emitTicketUpdate({
       ticketId: String(ticket._id),
       status: ticket.status,

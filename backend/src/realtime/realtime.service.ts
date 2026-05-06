@@ -16,7 +16,7 @@ export interface RealtimeTicketSnapshot {
 export interface TicketRealtimePayload {
   ticketId: string;
   status: string;
-  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated';
+  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated' | 'deleted';
   ticket: RealtimeTicketSnapshot;
 }
 

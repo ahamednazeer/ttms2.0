@@ -327,6 +327,10 @@ class ApiClient {
     });
   }
 
+  async deleteTicket(ticketId: string) {
+    return this.request(`/ride-ticket/${ticketId}`, { method: 'DELETE' });
+  }
+
   // ============ Invoices ============
   async getInvoices(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';

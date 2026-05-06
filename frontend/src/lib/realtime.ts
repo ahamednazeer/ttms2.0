@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export interface TicketUpdatedEvent {
   ticketId: string;
   status: string;
-  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated';
+  action: 'created' | 'assigned' | 'started' | 'completed' | 'updated' | 'deleted';
   ticket: unknown;
 }
 

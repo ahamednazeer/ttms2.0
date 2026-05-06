@@ -12,6 +12,7 @@ describe('TicketsService security', () => {
     const ticketModel = {
       find: jest.fn().mockReturnValue(queryChain),
       findById: jest.fn(),
+      findByIdAndDelete: jest.fn(),
       countDocuments: jest.fn(),
     };
 
@@ -24,7 +25,7 @@ describe('TicketsService security', () => {
     };
 
     const vendorModel = {
-      findById: jest.fn(),
+      findById: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) }),
       find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
 
